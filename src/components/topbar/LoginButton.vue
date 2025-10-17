@@ -36,8 +36,15 @@ import { ref } from 'vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { t } from '@/i18n'
 
-const { isLoggedIn, handleSignIn } = useCurrentUser()
+const { isLoggedIn } = useCurrentUser()
 const popoverRef = ref<InstanceType<typeof Popover> | null>(null)
+
+// Redirect to Bagel login instead of showing ComfyUI login
+const handleSignIn = () => {
+  const bagelUrl =
+    import.meta.env.VITE_BAGEL_FRONTEND_URL || 'https://app.bagel.com'
+  window.location.href = `${bagelUrl}/login?redirect=comfyui`
+}
 let hideTimeout: ReturnType<typeof setTimeout> | null = null
 let showTimeout: ReturnType<typeof setTimeout> | null = null
 

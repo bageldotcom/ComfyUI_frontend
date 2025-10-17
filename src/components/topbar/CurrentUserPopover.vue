@@ -25,17 +25,19 @@
 
     <Divider class="my-2" />
 
-    <Button
-      class="justify-start"
-      :label="$t('userSettings.title')"
-      icon="pi pi-cog"
-      text
-      fluid
-      severity="secondary"
-      @click="handleOpenUserSettings"
-    />
-
-    <Divider class="my-2" />
+    <!-- Hide User Settings for Bagel users -->
+    <template v-if="!isBagelUser">
+      <Button
+        class="justify-start"
+        :label="$t('userSettings.title')"
+        icon="pi pi-cog"
+        text
+        fluid
+        severity="secondary"
+        @click="handleOpenUserSettings"
+      />
+      <Divider class="my-2" />
+    </template>
 
     <Button
       class="justify-start"
@@ -49,17 +51,19 @@
 
     <Divider class="my-2" />
 
-    <Button
-      class="justify-start"
-      :label="$t('credits.apiPricing')"
-      icon="pi pi-external-link"
-      text
-      fluid
-      severity="secondary"
-      @click="handleOpenApiPricing"
-    />
-
-    <Divider class="my-2" />
+    <!-- Hide API Pricing for Bagel users -->
+    <template v-if="!isBagelUser">
+      <Button
+        class="justify-start"
+        :label="$t('credits.apiPricing')"
+        icon="pi pi-external-link"
+        text
+        fluid
+        severity="secondary"
+        @click="handleOpenApiPricing"
+      />
+      <Divider class="my-2" />
+    </template>
 
     <div class="flex w-full flex-col gap-2 p-2">
       <div class="text-sm text-muted">
@@ -76,22 +80,27 @@
 <script setup lang="ts">
 import Button from 'primevue/button'
 import Divider from 'primevue/divider'
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import UserCredit from '@/components/common/UserCredit.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { useFirebaseAuthActions } from '@/composables/auth/useFirebaseAuthActions'
 import { useDialogService } from '@/services/dialogService'
+import { useUserStore } from '@/stores/userStore'
 
 const emit = defineEmits<{
   close: []
 }>()
 
+const userStore = useUserStore()
 const { userDisplayName, userEmail, userPhotoUrl, handleSignOut } =
   useCurrentUser()
 const authActions = useFirebaseAuthActions()
 const dialogService = useDialogService()
+
+// Check if user is from Bagel (has bagelUser data)
+const isBagelUser = computed(() => userStore.bagelUser !== null)
 
 const handleOpenUserSettings = () => {
   dialogService.showSettingsDialog('user')
@@ -99,12 +108,26 @@ const handleOpenUserSettings = () => {
 }
 
 const handleTopUp = () => {
-  dialogService.showTopUpCreditsDialog()
+  if (isBagelUser.value) {
+    // Redirect to Bagel's buy-bagels page
+    const bagelUrl =
+      import.meta.env.VITE_BAGEL_FRONTEND_URL || 'https://app.bagel.com'
+    window.location.href = `${bagelUrl}/buy-bagels`
+  } else {
+    dialogService.showTopUpCreditsDialog()
+  }
   emit('close')
 }
 
 const handleLogout = async () => {
-  await handleSignOut()
+  if (isBagelUser.value) {
+    // Redirect to Bagel logout
+    const bagelUrl =
+      import.meta.env.VITE_BAGEL_FRONTEND_URL || 'https://app.bagel.com'
+    window.location.href = `${bagelUrl}/logout?redirect=comfyui`
+  } else {
+    await handleSignOut()
+  }
   emit('close')
 }
 
