@@ -23,6 +23,7 @@ import Tag from 'primevue/tag'
 import { computed } from 'vue'
 
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
+import { useUserStore } from '@/stores/userStore'
 import { formatMetronomeCurrency } from '@/utils/formatUtil'
 
 const { textClass } = defineProps<{
@@ -30,9 +31,18 @@ const { textClass } = defineProps<{
 }>()
 
 const authStore = useFirebaseAuthStore()
+const userStore = useUserStore()
 const balanceLoading = computed(() => authStore.isFetchingBalance)
 
 const formattedBalance = computed(() => {
+  // Check Bagel user balance first (in cents)
+  if (userStore.bagelUser) {
+    return formatMetronomeCurrency(
+      userStore.bagelUser.creditBalance * 10,
+      'usd'
+    )
+  }
+  // Fallback to ComfyUI balance (in micros)
   if (!authStore.balance) return '0.00'
   return formatMetronomeCurrency(authStore.balance.amount_micros, 'usd')
 })

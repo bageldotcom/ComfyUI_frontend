@@ -36,12 +36,13 @@
             text
             size="small"
             severity="secondary"
-            @click="() => authActions.fetchBalance()"
+            @click="handleRefreshBalance"
           />
         </div>
       </div>
 
-      <div class="flex items-center justify-between">
+      <!-- Hide Invoice History for Bagel users -->
+      <div v-if="!isBagelUser" class="flex items-center justify-between">
         <h3>{{ $t('credits.activity') }}</h3>
         <Button
           :label="$t('credits.invoiceHistory')"
@@ -82,9 +83,11 @@
 
       <Divider />
 
-      <UsageLogsTable ref="usageLogsTableRef" />
+      <!-- Hide UsageLogsTable for Bagel users (no usage events API in Bagel backend) -->
+      <UsageLogsTable v-if="!isBagelUser" ref="usageLogsTableRef" />
 
-      <div class="flex flex-row gap-2">
+      <!-- Hide Message Support for Bagel users -->
+      <div v-if="!isBagelUser" class="flex flex-row gap-2">
         <Button
           :label="$t('credits.faqs')"
           text
@@ -119,6 +122,7 @@ import { useFirebaseAuthActions } from '@/composables/auth/useFirebaseAuthAction
 import { useDialogService } from '@/services/dialogService'
 import { useCommandStore } from '@/stores/commandStore'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
+import { useUserStore } from '@/stores/userStore'
 import { formatMetronomeCurrency } from '@/utils/formatUtil'
 
 interface CreditHistoryItemData {
@@ -131,9 +135,11 @@ interface CreditHistoryItemData {
 const dialogService = useDialogService()
 const authStore = useFirebaseAuthStore()
 const authActions = useFirebaseAuthActions()
+const userStore = useUserStore()
 const commandStore = useCommandStore()
 const loading = computed(() => authStore.loading)
 const balanceLoading = computed(() => authStore.isFetchingBalance)
+const isBagelUser = computed(() => userStore.bagelUser !== null)
 
 const usageLogsTableRef = ref<InstanceType<typeof UsageLogsTable> | null>(null)
 
@@ -152,8 +158,31 @@ watch(
   }
 )
 
-const handlePurchaseCreditsClick = () => {
-  dialogService.showTopUpCreditsDialog()
+const handlePurchaseCreditsClick = async () => {
+  if (isBagelUser.value) {
+    // Redirect to Bagel frontend buy-bagels page
+    try {
+      const response = await fetch('/bagel/config')
+      const config = await response.json()
+      const bagelUrl = config.frontend_url || 'https://app.bagel.com'
+      window.location.href = `${bagelUrl}/buy-bagels`
+    } catch (error) {
+      // Fallback to default
+      window.location.href = 'https://app.bagel.com/buy-bagels'
+    }
+  } else {
+    dialogService.showTopUpCreditsDialog()
+  }
+}
+
+const handleRefreshBalance = async () => {
+  if (isBagelUser.value) {
+    // Refresh Bagel balance from backend
+    await userStore.syncBagelUser()
+  } else {
+    // Refresh ComfyUI balance
+    await authActions.fetchBalance()
+  }
 }
 
 const handleCreditsHistoryClick = async () => {

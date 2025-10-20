@@ -145,6 +145,10 @@ const handleOpenApiPricing = () => {
 }
 
 onMounted(() => {
-  void authActions.fetchBalance()
+  // Only fetch balance for non-Bagel users (Firebase/API Key users)
+  // Bagel users already have balance synced from backend
+  if (!isBagelUser.value) {
+    void authActions.fetchBalance()
+  }
 })
 </script>
