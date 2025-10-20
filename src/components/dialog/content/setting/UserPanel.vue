@@ -31,7 +31,8 @@
           </span>
         </div>
 
-        <div class="flex flex-col gap-0.5">
+        <!-- Hide provider section for Bagel users -->
+        <div v-if="!isBagelUser" class="flex flex-col gap-0.5">
           <h3 class="font-medium">
             {{ $t('userSettings.provider') }}
           </h3>
@@ -52,28 +53,31 @@
           </div>
         </div>
 
-        <ProgressSpinner
-          v-if="loading"
-          class="mt-4 h-8 w-8"
-          style="--pc-spinner-color: #000"
-        />
-        <div v-else class="mt-4 flex flex-col gap-2">
-          <Button
-            class="w-32"
-            severity="secondary"
-            :label="$t('auth.signOut.signOut')"
-            icon="pi pi-sign-out"
-            @click="handleSignOut"
+        <!-- Hide Log Out and Delete Account for Bagel users -->
+        <template v-if="!isBagelUser">
+          <ProgressSpinner
+            v-if="loading"
+            class="mt-4 h-8 w-8"
+            style="--pc-spinner-color: #000"
           />
-          <Button
-            v-if="!isApiKeyLogin"
-            class="w-32"
-            severity="danger"
-            :label="$t('auth.deleteAccount.deleteAccount')"
-            icon="pi pi-trash"
-            @click="handleDeleteAccount"
-          />
-        </div>
+          <div v-else class="mt-4 flex flex-col gap-2">
+            <Button
+              class="w-32"
+              severity="secondary"
+              :label="$t('auth.signOut.signOut')"
+              icon="pi pi-sign-out"
+              @click="handleSignOut"
+            />
+            <Button
+              v-if="!isApiKeyLogin"
+              class="w-32"
+              severity="danger"
+              :label="$t('auth.deleteAccount.deleteAccount')"
+              icon="pi pi-trash"
+              @click="handleDeleteAccount"
+            />
+          </div>
+        </template>
       </div>
 
       <!-- Login Section -->
@@ -100,12 +104,16 @@ import Button from 'primevue/button'
 import Divider from 'primevue/divider'
 import ProgressSpinner from 'primevue/progressspinner'
 import TabPanel from 'primevue/tabpanel'
+import { computed } from 'vue'
 
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { useDialogService } from '@/services/dialogService'
+import { useUserStore } from '@/stores/userStore'
 
 const dialogService = useDialogService()
+const userStore = useUserStore()
+
 const {
   loading,
   isLoggedIn,
@@ -120,4 +128,7 @@ const {
   handleSignIn,
   handleDeleteAccount
 } = useCurrentUser()
+
+// Check if user is from Bagel (has bagelUser data)
+const isBagelUser = computed(() => userStore.bagelUser !== null)
 </script>

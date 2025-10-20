@@ -7,19 +7,23 @@ import { useDialogService } from '@/services/dialogService'
 import { useApiKeyAuthStore } from '@/stores/apiKeyAuthStore'
 import { useCommandStore } from '@/stores/commandStore'
 import { useFirebaseAuthStore } from '@/stores/firebaseAuthStore'
+import { useUserStore } from '@/stores/userStore'
 import type { AuthUserInfo } from '@/types/authTypes'
 
 export const useCurrentUser = () => {
   const authStore = useFirebaseAuthStore()
   const commandStore = useCommandStore()
   const apiKeyStore = useApiKeyAuthStore()
+  const userStore = useUserStore()
   const dialogService = useDialogService()
   const { deleteAccount } = useFirebaseAuthActions()
 
   const firebaseUser = computed(() => authStore.currentUser)
   const isApiKeyLogin = computed(() => apiKeyStore.isAuthenticated)
+  const isBagelUser = computed(() => userStore.bagelUser !== null)
   const isLoggedIn = computed(
-    () => !!isApiKeyLogin.value || firebaseUser.value !== null
+    () =>
+      !!isApiKeyLogin.value || firebaseUser.value !== null || isBagelUser.value
   )
 
   const resolvedUserInfo = computed<AuthUserInfo | null>(() => {
@@ -38,6 +42,9 @@ export const useCurrentUser = () => {
     whenever(resolvedUserInfo, callback, { immediate: true })
 
   const userDisplayName = computed(() => {
+    if (isBagelUser.value) {
+      return userStore.bagelUser?.username
+    }
     if (isApiKeyLogin.value) {
       return apiKeyStore.currentUser?.name
     }
@@ -45,6 +52,9 @@ export const useCurrentUser = () => {
   })
 
   const userEmail = computed(() => {
+    if (isBagelUser.value) {
+      return userStore.bagelUser?.email
+    }
     if (isApiKeyLogin.value) {
       return apiKeyStore.currentUser?.email
     }
