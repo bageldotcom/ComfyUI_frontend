@@ -39,17 +39,19 @@
       <Divider class="my-2" />
     </template>
 
-    <Button
-      class="justify-start"
-      :label="$t('auth.signOut.signOut')"
-      icon="pi pi-sign-out"
-      text
-      fluid
-      severity="secondary"
-      @click="handleLogout"
-    />
-
-    <Divider class="my-2" />
+    <!-- Hide Sign Out for Bagel users -->
+    <template v-if="!isBagelUser">
+      <Button
+        class="justify-start"
+        :label="$t('auth.signOut.signOut')"
+        icon="pi pi-sign-out"
+        text
+        fluid
+        severity="secondary"
+        @click="handleLogout"
+      />
+      <Divider class="my-2" />
+    </template>
 
     <!-- Hide API Pricing for Bagel users -->
     <template v-if="!isBagelUser">
@@ -107,12 +109,18 @@ const handleOpenUserSettings = () => {
   emit('close')
 }
 
-const handleTopUp = () => {
+const handleTopUp = async () => {
   if (isBagelUser.value) {
-    // Redirect to Bagel's buy-bagels page
-    const bagelUrl =
-      import.meta.env.VITE_BAGEL_FRONTEND_URL || 'https://app.bagel.com'
-    window.location.href = `${bagelUrl}/buy-bagels`
+    // Fetch runtime config from backend to get correct frontend URL
+    try {
+      const response = await fetch('/bagel/config')
+      const config = await response.json()
+      const bagelUrl = config.frontend_url || 'https://app.bagel.com'
+      window.location.href = `${bagelUrl}/buy-bagels`
+    } catch (error) {
+      // Fallback to default
+      window.location.href = 'https://app.bagel.com/buy-bagels'
+    }
   } else {
     dialogService.showTopUpCreditsDialog()
   }
