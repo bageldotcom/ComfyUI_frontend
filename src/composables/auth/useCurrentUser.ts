@@ -101,6 +101,9 @@ export const useCurrentUser = () => {
   })
 
   const userPhotoUrl = computed(() => {
+    if (isBagelUser.value) {
+      return userStore.bagelUser?.photoUrl
+    }
     if (isApiKeyLogin.value) return null
     return firebaseUser.value?.photoURL
   })

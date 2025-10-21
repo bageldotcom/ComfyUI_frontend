@@ -26,6 +26,7 @@ export const useUserStore = defineStore('user', () => {
     email: string
     apiKey: string
     creditBalance: number
+    photoUrl?: string
   } | null>(null)
   const isMultiUserServer = computed(
     () => userConfig.value && 'users' in userConfig.value
@@ -67,7 +68,8 @@ export const useUserStore = defineStore('user', () => {
           username: data.username,
           email: data.email,
           apiKey: data.api_key,
-          creditBalance: data.creditBalance
+          creditBalance: data.creditBalance,
+          photoUrl: data.photo_url
         }
 
         // Set ComfyUI user to match
