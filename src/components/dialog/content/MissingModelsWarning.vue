@@ -13,18 +13,12 @@
   </div>
   <ListBox :options="missingModels" class="comfy-missing-models">
     <template #option="{ option }">
-      <Suspense v-if="isElectron()">
-        <ElectronFileDownload
-          :url="option.url"
-          :label="option.label"
-          :error="option.error"
-        />
-      </Suspense>
-      <FileDownload
-        v-else
+      <ServerFileDownload
         :url="option.url"
         :label="option.label"
         :error="option.error"
+        :model-type="option.modelType"
+        :filename="option.filename"
       />
     </template>
   </ListBox>
@@ -36,11 +30,9 @@ import ListBox from 'primevue/listbox'
 import { computed, onBeforeUnmount, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import ElectronFileDownload from '@/components/common/ElectronFileDownload.vue'
-import FileDownload from '@/components/common/FileDownload.vue'
 import NoResultsPlaceholder from '@/components/common/NoResultsPlaceholder.vue'
+import ServerFileDownload from '@/components/common/ServerFileDownload.vue'
 import { useSettingStore } from '@/platform/settings/settingStore'
-import { isElectron } from '@/utils/envUtil'
 
 // TODO: Read this from server internal API rather than hardcoding here
 // as some installations may wish to use custom sources
@@ -62,11 +54,6 @@ interface ModelInfo {
   directory: string
   directory_invalid?: boolean
   url: string
-  downloading?: boolean
-  completed?: boolean
-  progress?: number
-  error?: string
-  folder_path?: string
 }
 
 const props = defineProps<{
@@ -78,54 +65,47 @@ const { t } = useI18n()
 
 const doNotAskAgain = ref(false)
 
-const modelDownloads = ref<Record<string, ModelInfo>>({})
 const missingModels = computed(() => {
   return props.missingModels.map((model) => {
     const paths = props.paths[model.directory]
+
     if (model.directory_invalid || !paths) {
       return {
         label: `${model.directory} / ${model.name}`,
         url: model.url,
-        error: 'Invalid directory specified (does this require custom nodes?)'
+        error: 'Invalid directory specified (does this require custom nodes?)',
+        modelType: model.directory,
+        filename: model.name
       }
     }
-    const downloadInfo: ModelInfo = modelDownloads.value[model.name] ?? {
-      downloading: false,
-      completed: false,
-      progress: 0,
-      error: null,
-      name: model.name,
-      directory: model.directory,
-      url: model.url,
-      folder_path: paths[0]
-    }
-    modelDownloads.value[model.name] = downloadInfo
+
     if (!whiteListedUrls.has(model.url)) {
       if (!allowedSources.some((source) => model.url.startsWith(source))) {
         return {
           label: `${model.directory} / ${model.name}`,
           url: model.url,
-          error: `Download not allowed from source '${model.url}', only allowed from '${allowedSources.join("', '")}'`
+          error: `Download not allowed from source '${model.url}', only allowed from '${allowedSources.join("', '")}'`,
+          modelType: model.directory,
+          filename: model.name
         }
       }
       if (!allowedSuffixes.some((suffix) => model.name.endsWith(suffix))) {
         return {
           label: `${model.directory} / ${model.name}`,
           url: model.url,
-          error: `Only allowed suffixes are: '${allowedSuffixes.join("', '")}'`
+          error: `Only allowed suffixes are: '${allowedSuffixes.join("', '")}'`,
+          modelType: model.directory,
+          filename: model.name
         }
       }
     }
+
     return {
       url: model.url,
       label: `${model.directory} / ${model.name}`,
-      downloading: downloadInfo.downloading,
-      completed: downloadInfo.completed,
-      progress: downloadInfo.progress,
-      error: downloadInfo.error,
-      name: model.name,
-      paths: paths,
-      folderPath: downloadInfo.folder_path
+      modelType: model.directory,
+      filename: model.name,
+      error: null
     }
   })
 })

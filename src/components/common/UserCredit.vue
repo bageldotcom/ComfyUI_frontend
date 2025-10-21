@@ -35,13 +35,11 @@ const userStore = useUserStore()
 const balanceLoading = computed(() => authStore.isFetchingBalance)
 
 const formattedBalance = computed(() => {
-  // Check Bagel user balance first (in cents)
+  // Check Bagel user balance first (already in USD cents from backend)
   if (userStore.bagelUser) {
-    // Convert cents to micros: cents * 10,000 = micros
-    return formatMetronomeCurrency(
-      userStore.bagelUser.creditBalance * 10000,
-      'usd'
-    )
+    // creditBalance is in USD cents, display as dollars
+    const dollars = userStore.bagelUser.creditBalance / 100
+    return dollars.toFixed(2)
   }
   // Fallback to ComfyUI balance (in micros)
   if (!authStore.balance) return '0.00'
