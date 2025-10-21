@@ -76,6 +76,7 @@ import { useSettingSearch } from '@/platform/settings/composables/useSettingSear
 import { useSettingUI } from '@/platform/settings/composables/useSettingUI'
 import type { SettingTreeNode } from '@/platform/settings/settingStore'
 import type { ISettingGroup, SettingParams } from '@/platform/settings/types'
+import { useUserStore } from '@/stores/userStore'
 import { flattenTree } from '@/utils/treeUtil'
 
 const { defaultPanel } = defineProps<{
@@ -106,6 +107,7 @@ const {
 } = useSettingSearch()
 
 const authActions = useFirebaseAuthActions()
+const userStore = useUserStore()
 
 // Sort groups for a category
 const sortedGroups = (category: SettingTreeNode): ISettingGroup[] => {
@@ -142,7 +144,8 @@ watch(activeCategory, (_, oldValue) => {
   if (!tabValue.value) {
     activeCategory.value = oldValue
   }
-  if (activeCategory.value?.key === 'credits') {
+  // Only fetch balance for non-Bagel users when opening Credits tab
+  if (activeCategory.value?.key === 'credits' && !userStore.bagelUser) {
     void authActions.fetchBalance()
   }
 })

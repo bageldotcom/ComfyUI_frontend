@@ -37,8 +37,9 @@ const balanceLoading = computed(() => authStore.isFetchingBalance)
 const formattedBalance = computed(() => {
   // Check Bagel user balance first (in cents)
   if (userStore.bagelUser) {
+    // Convert cents to micros: cents * 10,000 = micros
     return formatMetronomeCurrency(
-      userStore.bagelUser.creditBalance * 10,
+      userStore.bagelUser.creditBalance * 10000,
       'usd'
     )
   }
