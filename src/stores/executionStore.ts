@@ -28,6 +28,7 @@ import type {
 import { api } from '@/scripts/api'
 import { app } from '@/scripts/app'
 import { useNodeOutputStore } from '@/stores/imagePreviewStore'
+import { useUserStore } from '@/stores/userStore'
 import type { NodeLocatorId } from '@/types/nodeIdentification'
 import { createNodeLocatorId } from '@/types/nodeIdentification'
 
@@ -289,6 +290,14 @@ export const useExecutionStore = defineStore('execution', () => {
 
   function handleExecutionSuccess() {
     resetExecutionState()
+
+    // Refresh Bagel credit balance after successful execution
+    const userStore = useUserStore()
+    if (userStore.bagelUser) {
+      userStore.syncBagelUser().catch((error) => {
+        console.error('[Bagel] Failed to refresh credit balance:', error)
+      })
+    }
   }
 
   function handleExecuting(e: CustomEvent<NodeId | null>): void {

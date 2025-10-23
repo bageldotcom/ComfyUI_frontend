@@ -40,7 +40,8 @@
           v-if="userStore.isMultiUserServer"
           :is-small="isSmall"
         />
-        <SidebarHelpCenterIcon :is-small="isSmall" />
+        <!-- Help Center removed for Bagel -->
+        <!-- <SidebarHelpCenterIcon :is-small="isSmall" /> -->
         <SidebarBottomPanelToggleButton :is-small="isSmall" />
         <SidebarShortcutsToggleButton :is-small="isSmall" />
       </div>
@@ -65,7 +66,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore'
 import type { SidebarTabExtension } from '@/types/extensionTypes'
 import { cn } from '@/utils/tailwindUtil'
 
-import SidebarHelpCenterIcon from './SidebarHelpCenterIcon.vue'
+// import SidebarHelpCenterIcon from './SidebarHelpCenterIcon.vue'
 import SidebarIcon from './SidebarIcon.vue'
 import SidebarLogoutIcon from './SidebarLogoutIcon.vue'
 import SidebarTemplatesButton from './SidebarTemplatesButton.vue'
