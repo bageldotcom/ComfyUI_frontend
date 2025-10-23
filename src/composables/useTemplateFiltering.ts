@@ -128,8 +128,17 @@ export function useTemplateFiltering(
     })
   })
 
+  // Filter out API node templates for Bagel deployment
+  const filteredByApiNodes = computed(() => {
+    return filteredByLicenses.value.filter((template) => {
+      const hasApiTag = template.tags?.includes('API')
+      const hasApiPrefix = template.name?.toLowerCase().startsWith('api_')
+      return !hasApiTag && !hasApiPrefix
+    })
+  })
+
   const sortedTemplates = computed(() => {
-    const templates = [...filteredByLicenses.value]
+    const templates = [...filteredByApiNodes.value]
 
     switch (sortBy.value) {
       case 'alphabetical':
