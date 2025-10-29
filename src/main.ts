@@ -36,12 +36,75 @@ Sentry.init({
   dsn: __SENTRY_DSN__,
   enabled: __SENTRY_ENABLED__,
   release: __COMFYUI_FRONTEND_VERSION__,
-  integrations: [],
-  autoSessionTracking: false,
-  defaultIntegrations: false,
-  normalizeDepth: 8,
-  tracesSampleRate: 0
+  environment: __COMFYUI_ENV__ || 'development',
+
+  // Session replay for error debugging
+  integrations: [
+    Sentry.replayIntegration({
+      maskAllText: false,
+      blockAllMedia: false
+    })
+  ],
+
+  // Sampling rates (matches Bagel frontend)
+  tracesSampleRate: 1.0, // 100% always (matches Bagel)
+  replaysSessionSampleRate: 0.1, // 10% of sessions
+  replaysOnErrorSampleRate: 1.0, // 100% when errors occur
+
+  // Session tracking
+  autoSessionTracking: true,
+
+  // Error filtering (production noise reduction)
+  beforeSend(event) {
+    // Filter ResizeObserver errors (browser quirk, not our bug)
+    if (
+      event.exception?.values?.[0]?.value
+        ?.toLowerCase()
+        .includes('resizeobserver')
+    ) {
+      return null
+    }
+
+    // Filter browser extension errors (Web3 wallets, etc.)
+    const isBrowserExtension =
+      event.exception?.values?.[0]?.stacktrace?.frames?.some(
+        (frame) =>
+          frame.filename?.includes('chrome-extension://') ||
+          frame.filename?.includes('moz-extension://') ||
+          frame.filename?.includes('extension://')
+      )
+    if (isBrowserExtension) {
+      return null
+    }
+
+    return event
+  },
+
+  // Deep object normalization
+  normalizeDepth: 10
 })
+
+// Enable Vue-specific error tracking
+app.config.errorHandler = (err, instance, info) => {
+  Sentry.captureException(err, {
+    contexts: {
+      vue: {
+        componentName: instance?.$options?.name || 'Unknown',
+        propsData: instance?.$props,
+        lifecycle: info
+      }
+    }
+  })
+
+  // Still log to console in development
+  if (__SENTRY_ENABLED__ === false) {
+    console.error('[Vue Error]', err, info)
+  }
+}
+
+// Set global tags
+Sentry.setTag('service', 'comfyui')
+Sentry.setTag('component', 'frontend')
 app.directive('tooltip', Tooltip)
 app
   .use(router)

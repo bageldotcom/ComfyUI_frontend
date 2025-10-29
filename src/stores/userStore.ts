@@ -81,6 +81,16 @@ export const useUserStore = defineStore('user', () => {
         localStorage['Bagel.userEmail'] = data.email
         localStorage['Bagel.creditBalance'] = data.creditBalance.toString()
 
+        // Set Sentry user context for error tracking
+        void import('@sentry/vue').then((Sentry) => {
+          Sentry.setUser({
+            id: data.comfy_user_id,
+            email: data.email,
+            username: data.username
+          })
+          Sentry.setTag('user_authenticated', true)
+        })
+
         return true
       } else {
         console.warn('[Bagel] No active Bagel session')
@@ -88,6 +98,14 @@ export const useUserStore = defineStore('user', () => {
       }
     } catch (error) {
       console.error('[Bagel] Failed to sync user:', error)
+
+      // Capture sync failures in Sentry
+      void import('@sentry/vue').then((Sentry) => {
+        Sentry.captureException(error, {
+          tags: { error_type: 'user_sync_failed' }
+        })
+      })
+
       return false
     }
   }
