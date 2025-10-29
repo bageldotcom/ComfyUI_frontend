@@ -503,6 +503,12 @@ export const useQueueStore = defineStore('queue', () => {
     }
     await Promise.all(targets.map((type) => api.clearItems(type)))
     await update()
+
+    // Force count update immediately (don't wait for WebSocket)
+    if (targets.includes('queue')) {
+      const countStore = useQueuePendingTaskCountStore()
+      countStore.count = 0
+    }
   }
 
   const deleteTask = async (task: TaskItemImpl) => {
