@@ -23,6 +23,20 @@
       </div>
     </div>
 
+    <!-- Back to Bagel App button for Bagel users -->
+    <template v-if="isBagelUser">
+      <Button
+        class="justify-start"
+        label="Back to Bagel App"
+        icon="pi pi-arrow-left"
+        text
+        fluid
+        severity="secondary"
+        @click="handleBackToBagel"
+      />
+      <Divider class="my-2" />
+    </template>
+
     <!-- Hide User Settings for Bagel users -->
     <template v-if="!isBagelUser">
       <Button
@@ -109,6 +123,13 @@ const handleLogout = async () => {
 
 const handleOpenApiPricing = () => {
   window.open('https://docs.comfy.org/tutorials/api-nodes/pricing', '_blank')
+  emit('close')
+}
+
+const handleBackToBagel = () => {
+  const bagelUrl =
+    import.meta.env.VITE_BAGEL_FRONTEND_URL || 'https://app.bagel.com'
+  window.location.href = `${bagelUrl}/dashboard`
   emit('close')
 }
 
