@@ -459,6 +459,17 @@ export const useQueueStore = defineStore('queue', () => {
         api.getHistory(maxHistoryItems.value)
       ])
 
+      // Defense in depth: filter queue items by current user
+      const currentUserId = api.user
+      const filterUserItems = (items: TaskItem[]): TaskItem[] => {
+        if (!currentUserId) return items
+        return items.filter((item: TaskItem) => {
+          const extraData: any = item.prompt?.[3]
+          const itemUserId = extraData?.user_id
+          return !itemUserId || itemUserId === currentUserId
+        })
+      }
+
       const toClassAll = (tasks: TaskItem[]): TaskItemImpl[] =>
         tasks
           .map(
@@ -473,14 +484,17 @@ export const useQueueStore = defineStore('queue', () => {
           )
           .sort((a, b) => b.queueIndex - a.queueIndex)
 
-      runningTasks.value = toClassAll(queue.Running)
-      pendingTasks.value = toClassAll(queue.Pending)
+      runningTasks.value = toClassAll(filterUserItems(queue.Running))
+      pendingTasks.value = toClassAll(filterUserItems(queue.Pending))
+
+      // Apply user filtering to history as well
+      const filteredHistory = filterUserItems(history.History)
 
       const allIndex = new Set<number>(
-        history.History.map((item: TaskItem) => item.prompt[0])
+        filteredHistory.map((item: TaskItem) => item.prompt[0])
       )
       const newHistoryItems = toClassAll(
-        history.History.filter(
+        filteredHistory.filter(
           (item) => item.prompt[0] > lastHistoryQueueIndex.value
         )
       )
