@@ -23,8 +23,6 @@
       </div>
     </div>
 
-    <Divider class="my-2" />
-
     <!-- Hide User Settings for Bagel users -->
     <template v-if="!isBagelUser">
       <Button
