@@ -64,18 +64,7 @@
         severity="secondary"
         @click="handleOpenApiPricing"
       />
-      <Divider class="my-2" />
     </template>
-
-    <div class="flex w-full flex-col gap-2 p-2">
-      <div class="text-sm text-muted">
-        {{ $t('credits.yourCreditBalance') }}
-      </div>
-      <div class="flex items-center justify-between">
-        <UserCredit text-class="text-2xl" />
-        <Button :label="$t('credits.topUp.topUp')" @click="handleTopUp" />
-      </div>
-    </div>
   </div>
 </template>
 
@@ -85,7 +74,6 @@ import Divider from 'primevue/divider'
 import { computed, onMounted } from 'vue'
 
 import UserAvatar from '@/components/common/UserAvatar.vue'
-import UserCredit from '@/components/common/UserCredit.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
 import { useFirebaseAuthActions } from '@/composables/auth/useFirebaseAuthActions'
 import { useDialogService } from '@/services/dialogService'
@@ -106,24 +94,6 @@ const isBagelUser = computed(() => userStore.bagelUser !== null)
 
 const handleOpenUserSettings = () => {
   dialogService.showSettingsDialog('user')
-  emit('close')
-}
-
-const handleTopUp = async () => {
-  if (isBagelUser.value) {
-    // Fetch runtime config from backend to get correct frontend URL
-    try {
-      const response = await fetch('/bagel/config')
-      const config = await response.json()
-      const bagelUrl = config.frontend_url || 'https://app.bagel.com'
-      window.location.href = `${bagelUrl}/buy-bagels`
-    } catch (error) {
-      // Fallback to default
-      window.location.href = 'https://app.bagel.com/buy-bagels'
-    }
-  } else {
-    dialogService.showTopUpCreditsDialog()
-  }
   emit('close')
 }
 

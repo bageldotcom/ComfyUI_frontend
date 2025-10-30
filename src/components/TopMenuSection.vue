@@ -14,7 +14,10 @@
       ></div>
       <ComfyActionbar />
       <LoginButton v-if="!isLoggedIn" />
-      <CurrentUserButton v-else class="shrink-0" />
+      <template v-else>
+        <BalanceDisplay class="mr-2 shrink-0" />
+        <CurrentUserButton class="shrink-0" />
+      </template>
     </div>
   </div>
 </template>
@@ -24,6 +27,7 @@ import { onMounted, ref } from 'vue'
 
 import ComfyActionbar from '@/components/actionbar/ComfyActionbar.vue'
 import SubgraphBreadcrumb from '@/components/breadcrumb/SubgraphBreadcrumb.vue'
+import BalanceDisplay from '@/components/topbar/BalanceDisplay.vue'
 import CurrentUserButton from '@/components/topbar/CurrentUserButton.vue'
 import LoginButton from '@/components/topbar/LoginButton.vue'
 import { useCurrentUser } from '@/composables/auth/useCurrentUser'
