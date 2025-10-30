@@ -26,14 +26,14 @@
     <!-- Top up button -->
     <Button
       icon="pi pi-plus"
-      rounded
       text
       size="small"
       severity="secondary"
       class="laptop:ml-2 laptop:w-8 laptop:h-8 ml-1 flex h-7 w-7 items-center justify-center transition-all duration-200"
       :style="{
         backgroundColor: 'var(--p-primary-color)',
-        color: 'white'
+        color: 'white',
+        borderRadius: '0.5rem'
       }"
       aria-label="Buy more bagels"
       @click="handleTopUp"
