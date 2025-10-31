@@ -44,6 +44,21 @@ interface QueuedPrompt {
   workflow?: ComfyWorkflow
 }
 
+/**
+ * Phase 2: Per-prompt execution state for multi-workflow isolation
+ */
+interface PromptExecutionState {
+  promptId: string
+  userId: string
+  nodes: Record<string, boolean>
+  progressStates: Record<string, NodeProgressState>
+  outputs: Record<string, any>
+  status: 'queued' | 'running' | 'completed' | 'error'
+  startedAt: number | null
+  completedAt: number | null
+  lastActivity: number
+}
+
 const subgraphNodeIdToSubgraph = (id: string, graph: LGraph | Subgraph) => {
   const node = graph.getNodeById(id)
   if (node?.isSubgraphNode()) return node.subgraph
@@ -106,6 +121,61 @@ export const useExecutionStore = defineStore('execution', () => {
   const lastExecutionError = ref<ExecutionErrorWsMessage | null>(null)
   // This is the progress of all nodes in the currently executing workflow
   const nodeProgressStates = ref<Record<string, NodeProgressState>>({})
+
+  /**
+   * Phase 2: Prompt-scoped execution state (NEW - multi-workflow isolation)
+   */
+  const activePromptIds = ref<Set<string>>(new Set())
+  const promptExecutions = ref<Map<string, PromptExecutionState>>(new Map())
+
+  /**
+   * Phase 2: Get or create execution state for a prompt (multi-workflow isolation)
+   */
+  function getExecutionState(promptId: string): PromptExecutionState {
+    if (!promptExecutions.value.has(promptId)) {
+      promptExecutions.value.set(promptId, {
+        promptId,
+        userId: api.user || '',
+        nodes: {},
+        progressStates: {},
+        outputs: {},
+        status: 'queued',
+        startedAt: null,
+        completedAt: null,
+        lastActivity: Date.now()
+      })
+    }
+    return promptExecutions.value.get(promptId)!
+  }
+
+  /**
+   * Phase 2: Clean up old executions (keep last 10 per user)
+   */
+  function cleanupOldExecutions() {
+    const byUser = new Map<string, string[]>()
+
+    for (const [promptId, state] of promptExecutions.value.entries()) {
+      if (!byUser.has(state.userId)) byUser.set(state.userId, [])
+      byUser.get(state.userId)!.push(promptId)
+    }
+
+    for (const prompts of byUser.values()) {
+      if (prompts.length > 10) {
+        // Sort by lastActivity, keep 10 most recent
+        const sorted = prompts
+          .map((p) => ({
+            id: p,
+            time: promptExecutions.value.get(p)!.lastActivity
+          }))
+          .sort((a, b) => b.time - a.time)
+
+        sorted.slice(10).forEach(({ id }) => {
+          promptExecutions.value.delete(id)
+          activePromptIds.value.delete(id)
+        })
+      }
+    }
+  }
 
   const mergeExecutionProgressStates = (
     currentState: NodeProgressState | undefined,
@@ -267,8 +337,18 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleExecutionStart(e: CustomEvent<ExecutionStartWsMessage>) {
+    const { prompt_id, timestamp } = e.detail
+
+    // Phase 2: Track in prompt-scoped state
+    const state = getExecutionState(prompt_id)
+    state.status = 'running'
+    state.startedAt = timestamp || Date.now()
+    state.lastActivity = Date.now()
+    activePromptIds.value.add(prompt_id)
+
+    // Backward compatibility
     lastExecutionError.value = null
-    activePromptId.value = e.detail.prompt_id
+    activePromptId.value = prompt_id
     queuedPrompts.value[activePromptId.value] ??= { nodes: {} }
   }
 
@@ -284,11 +364,39 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleExecuted(e: CustomEvent<ExecutedWsMessage>) {
+    const { prompt_id, node, output } = e.detail
+
+    // Phase 2: Update prompt-scoped state
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      if (output) {
+        state.outputs[node] = output
+      }
+      if (state.progressStates[node]) {
+        state.progressStates[node].state = 'finished'
+        state.progressStates[node].value = state.progressStates[node].max
+      }
+      state.lastActivity = Date.now()
+    }
+
+    // Backward compatibility
     if (!activePrompt.value) return
     activePrompt.value.nodes[e.detail.node] = true
   }
 
-  function handleExecutionSuccess() {
+  function handleExecutionSuccess(e?: CustomEvent<any>) {
+    const prompt_id = e?.detail?.prompt_id
+
+    // Phase 2: Update prompt-scoped state
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      state.status = 'completed'
+      state.completedAt = Date.now()
+      activePromptIds.value.delete(prompt_id)
+      cleanupOldExecutions()
+    }
+
+    // Backward compatibility
     resetExecutionState()
 
     // Refresh Bagel credit balance after successful execution
@@ -316,7 +424,14 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleProgressState(e: CustomEvent<ProgressStateWsMessage>) {
-    const { nodes } = e.detail
+    const { nodes, prompt_id } = e.detail
+
+    // Phase 2: Update prompt-scoped state instead of global state (CRITICAL FIX)
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      state.progressStates = nodes
+      state.lastActivity = Date.now()
+    }
 
     // Revoke previews for nodes that are starting to execute
     for (const nodeId in nodes) {
@@ -331,8 +446,10 @@ export const useExecutionStore = defineStore('execution', () => {
       }
     }
 
-    // Update the progress states for all nodes
-    nodeProgressStates.value = nodes
+    // Backward compatibility: Update global state for active prompt only
+    if (prompt_id === activePromptId.value) {
+      nodeProgressStates.value = nodes
+    }
 
     // If we have progress for the currently executing node, update it for backwards compatibility
     if (executingNodeId.value && nodes[executingNodeId.value]) {
@@ -360,6 +477,17 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleExecutionError(e: CustomEvent<ExecutionErrorWsMessage>) {
+    const { prompt_id } = e.detail
+
+    // Phase 2: Update prompt-scoped state
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      state.status = 'error'
+      state.completedAt = Date.now()
+      activePromptIds.value.delete(prompt_id)
+    }
+
+    // Backward compatibility
     lastExecutionError.value = e.detail
     resetExecutionState()
   }

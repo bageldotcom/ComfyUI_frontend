@@ -245,6 +245,14 @@ export class PromptExecutionError extends Error {
   }
 }
 
+/** Metadata for active workflow executions - Phase 1: Multi-workflow isolation */
+interface PromptMetadata {
+  promptId: string
+  userId: string
+  submittedAt: number
+  status: 'queued' | 'running' | 'completed' | 'error'
+}
+
 export class ComfyApi extends EventTarget {
   #registered = new Set()
   api_host: string
@@ -264,6 +272,13 @@ export class ComfyApi extends EventTarget {
   socket: WebSocket | null = null
 
   reportedUnknownMessageTypes = new Set<string>()
+
+  /**
+   * Track active workflow executions to prevent state contamination.
+   * Phase 1: Multi-workflow isolation
+   */
+  private activePrompts: Set<string> = new Set()
+  private promptMetadata: Map<string, PromptMetadata> = new Map()
 
   /**
    * Get feature flags supported by this frontend client.
@@ -303,6 +318,53 @@ export class ComfyApi extends EventTarget {
     this.api_base = location.pathname.split('/').slice(0, -1).join('/')
     console.log('Running on', this.api_host)
     this.initialClientId = sessionStorage.getItem('clientId')
+  }
+
+  /**
+   * Register a new prompt as active (Phase 1: Multi-workflow isolation)
+   */
+  registerPrompt(promptId: string, userId: string): void {
+    this.activePrompts.add(promptId)
+    this.promptMetadata.set(promptId, {
+      promptId,
+      userId,
+      submittedAt: Date.now(),
+      status: 'queued'
+    })
+    console.log(`[ComfyAPI] Registered prompt ${promptId} for user ${userId}`)
+    this.dispatchCustomEvent(
+      'prompt:registered' as any,
+      { promptId, userId } as any
+    )
+  }
+
+  /**
+   * Unregister a completed/errored prompt (Phase 1: Multi-workflow isolation)
+   */
+  unregisterPrompt(promptId: string): void {
+    this.activePrompts.delete(promptId)
+    const metadata = this.promptMetadata.get(promptId)
+    if (metadata) {
+      metadata.status = 'completed'
+      // Keep metadata for 5 minutes for history access
+      setTimeout(() => this.promptMetadata.delete(promptId), 5 * 60 * 1000)
+    }
+    console.log(`[ComfyAPI] Unregistered prompt ${promptId}`)
+    this.dispatchCustomEvent('prompt:unregistered' as any, { promptId } as any)
+  }
+
+  /**
+   * Check if a prompt is currently active (Phase 1: Multi-workflow isolation)
+   */
+  isPromptActive(promptId: string): boolean {
+    return this.activePrompts.has(promptId)
+  }
+
+  /**
+   * Get all active prompt IDs (Phase 1: Multi-workflow isolation)
+   */
+  getActivePrompts(): string[] {
+    return Array.from(this.activePrompts)
   }
 
   internalURL(route: string): string {
@@ -521,6 +583,7 @@ export class ComfyApi extends EventTarget {
           const msg = JSON.parse(event.data) as ApiMessageUnion
           switch (msg.type) {
             case 'status':
+              // Status messages don't have prompt_id, always process
               if (msg.data.sid) {
                 const clientId = msg.data.sid
                 this.clientId = clientId
@@ -543,6 +606,36 @@ export class ComfyApi extends EventTarget {
             case 'progress':
             case 'progress_state':
             case 'executed':
+              // Phase 1: Filter by active prompt to prevent workflow contamination
+              const promptId = (msg.data as any).prompt_id
+
+              if (!promptId) {
+                console.warn(
+                  `[ComfyAPI] Message ${msg.type} missing prompt_id`,
+                  msg
+                )
+                break
+              }
+
+              if (!this.isPromptActive(promptId)) {
+                console.debug(
+                  `[ComfyAPI] Ignoring message for inactive prompt ${promptId}`
+                )
+                break
+              }
+
+              // Dispatch with prompt_id context
+              this.dispatchCustomEvent(msg.type, msg.data)
+
+              // Unregister on completion
+              if (
+                msg.type === 'execution_success' ||
+                msg.type === 'execution_error' ||
+                msg.type === 'execution_interrupted'
+              ) {
+                this.unregisterPrompt(promptId)
+              }
+              break
             case 'graphChanged':
             case 'promptQueued':
             case 'logs':
@@ -689,7 +782,14 @@ export class ComfyApi extends EventTarget {
       throw new PromptExecutionError(await res.json())
     }
 
-    return await res.json()
+    const result = await res.json()
+
+    // Phase 1: Register prompt as active for multi-workflow isolation
+    if (result.prompt_id) {
+      this.registerPrompt(result.prompt_id, this.user)
+    }
+
+    return result
   }
 
   /**
