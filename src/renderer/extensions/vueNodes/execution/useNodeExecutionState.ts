@@ -11,18 +11,34 @@ import { useExecutionStore } from '@/stores/executionStore'
  * by injecting execution data from the parent GraphCanvas provider.
  *
  * @param nodeLocatorIdMaybe - Locator ID (root or subgraph scoped) of the node to track
+ * @param promptIdMaybe - Optional prompt ID for multi-workflow isolation
  * @returns Object containing reactive execution state and progress
  */
 export const useNodeExecutionState = (
-  nodeLocatorIdMaybe: MaybeRefOrGetter<string | undefined>
+  nodeLocatorIdMaybe: MaybeRefOrGetter<string | undefined>,
+  promptIdMaybe?: MaybeRefOrGetter<string | undefined>
 ) => {
   const locatorId = computed(() => toValue(nodeLocatorIdMaybe) ?? '')
-  const { nodeLocationProgressStates, isIdle } =
-    storeToRefs(useExecutionStore())
+  const promptId = computed(() => toValue(promptIdMaybe))
+  const executionStore = useExecutionStore()
+  const { nodeLocationProgressStates, isIdle } = storeToRefs(executionStore)
 
   const progressState = computed(() => {
     const id = locatorId.value
-    return id ? nodeLocationProgressStates.value[id] : undefined
+    if (!id) return undefined
+
+    // If promptId provided, use prompt-scoped state
+    if (promptId.value) {
+      const execution = executionStore.promptExecutions.get(promptId.value)
+      if (!execution) return undefined
+
+      // Extract node ID from locator (format: "graph_id:node_id" or "node_id")
+      const nodeId = id.includes(':') ? id.split(':').pop() : id
+      return nodeId ? execution.progressStates[nodeId] : undefined
+    }
+
+    // Fall back to merged global state for backward compatibility
+    return nodeLocationProgressStates.value[id]
   })
 
   const executing = computed(

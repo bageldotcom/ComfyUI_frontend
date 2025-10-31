@@ -593,11 +593,6 @@ export class ComfyApi extends EventTarget {
               this.dispatchCustomEvent('status', msg.data.status ?? null)
               break
             case 'executing':
-              this.dispatchCustomEvent(
-                'executing',
-                msg.data.display_node || msg.data.node
-              )
-              break
             case 'execution_start':
             case 'execution_error':
             case 'execution_interrupted':
@@ -625,7 +620,7 @@ export class ComfyApi extends EventTarget {
               }
 
               // Dispatch with prompt_id context
-              this.dispatchCustomEvent(msg.type, msg.data)
+              this.dispatchCustomEvent(msg.type as any, msg.data as any)
 
               // Unregister on completion
               if (

@@ -1,5 +1,6 @@
 <template>
   <router-view />
+  <WorkflowTabs />
   <ProgressSpinner
     v-if="isLoading"
     class="absolute inset-0 flex h-[unset] items-center justify-center"
@@ -14,6 +15,7 @@ import BlockUI from 'primevue/blockui'
 import ProgressSpinner from 'primevue/progressspinner'
 import { computed, onMounted } from 'vue'
 
+import WorkflowTabs from '@/components/WorkflowTabs.vue'
 import GlobalDialog from '@/components/dialog/GlobalDialog.vue'
 import config from '@/config'
 import { useWorkspaceStore } from '@/stores/workspaceStore'

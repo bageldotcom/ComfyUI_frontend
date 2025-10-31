@@ -470,6 +470,43 @@ export const useQueueStore = defineStore('queue', () => {
         })
       }
 
+      // Filter expired temp-outputs (1 hour TTL for NSFW content)
+      const filterExpiredOutputs = (items: TaskItem[]): TaskItem[] => {
+        const ONE_HOUR_MS = 60 * 60 * 1000
+        const now = Date.now()
+
+        return items.filter((item: TaskItem) => {
+          // Only history tasks have outputs
+          if (item.taskType !== 'History') return true
+          if (!item.outputs) return true
+
+          // Check if any output is in temp-outputs/ folder
+          for (const nodeOutputs of Object.values(item.outputs)) {
+            for (const outputs of Object.values(nodeOutputs)) {
+              if (Array.isArray(outputs)) {
+                const hasTempOutput = outputs.some((output: ResultItem) =>
+                  output.subfolder?.includes('temp-outputs')
+                )
+
+                if (hasTempOutput) {
+                  // Check timestamp from execution_start message
+                  const messages = item.status?.messages || []
+                  const startMessage = messages.find(
+                    (msg: any) => msg[0] === 'execution_start'
+                  )
+                  const timestamp = startMessage?.[1]?.timestamp
+
+                  if (timestamp && now - timestamp > ONE_HOUR_MS) {
+                    return false
+                  }
+                }
+              }
+            }
+          }
+          return true
+        })
+      }
+
       const toClassAll = (tasks: TaskItem[]): TaskItemImpl[] =>
         tasks
           .map(
@@ -487,8 +524,10 @@ export const useQueueStore = defineStore('queue', () => {
       runningTasks.value = toClassAll(filterUserItems(queue.Running))
       pendingTasks.value = toClassAll(filterUserItems(queue.Pending))
 
-      // Apply user filtering to history as well
-      const filteredHistory = filterUserItems(history.History)
+      // Apply user filtering and expiry filtering to history
+      const filteredHistory = filterExpiredOutputs(
+        filterUserItems(history.History)
+      )
 
       const allIndex = new Set<number>(
         filteredHistory.map((item: TaskItem) => item.prompt[0])

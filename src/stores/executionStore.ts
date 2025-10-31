@@ -16,6 +16,7 @@ import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
 import type {
   DisplayComponentWsMessage,
   ExecutedWsMessage,
+  ExecutingWsMessage,
   ExecutionCachedWsMessage,
   ExecutionErrorWsMessage,
   ExecutionStartWsMessage,
@@ -312,7 +313,7 @@ export const useExecutionStore = defineStore('execution', () => {
     api.addEventListener('execution_interrupted', handleExecutionInterrupted)
     api.addEventListener('execution_success', handleExecutionSuccess)
     api.addEventListener('executed', handleExecuted)
-    api.addEventListener('executing', handleExecuting)
+    api.addEventListener('executing', handleExecuting as any)
     api.addEventListener('progress', handleProgress)
     api.addEventListener('progress_state', handleProgressState)
     api.addEventListener('status', handleStatus)
@@ -327,7 +328,7 @@ export const useExecutionStore = defineStore('execution', () => {
     api.removeEventListener('execution_interrupted', handleExecutionInterrupted)
     api.removeEventListener('execution_success', handleExecutionSuccess)
     api.removeEventListener('executed', handleExecuted)
-    api.removeEventListener('executing', handleExecuting)
+    api.removeEventListener('executing', handleExecuting as any)
     api.removeEventListener('progress', handleProgress)
     api.removeEventListener('progress_state', handleProgressState)
     api.removeEventListener('status', handleStatus)
@@ -408,14 +409,33 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
-  function handleExecuting(e: CustomEvent<NodeId | null>): void {
+  function handleExecuting(e: CustomEvent<ExecutingWsMessage>): void {
+    const { node, prompt_id } = e.detail
+
     // Clear the current node progress when a new node starts executing
     _executingNodeProgress.value = null
 
-    if (!activePrompt.value) return
+    // Phase 2: Update prompt-scoped state
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      if (node === null) {
+        // Execution cleared
+        state.status = 'completed'
+        state.completedAt = Date.now()
+        activePromptIds.value.delete(prompt_id)
+        cleanupOldExecutions()
+      } else {
+        // Node started executing
+        if (state.progressStates[node]) {
+          state.progressStates[node].state = 'running'
+        }
+      }
+      state.lastActivity = Date.now()
+    }
 
-    // Update the executing nodes list
-    if (typeof e.detail !== 'string') {
+    // Backward compatibility
+    if (!activePrompt.value) return
+    if (node === null) {
       if (activePromptId.value) {
         delete queuedPrompts.value[activePromptId.value]
       }
@@ -600,6 +620,10 @@ export const useExecutionStore = defineStore('execution', () => {
     _executingNodeProgress,
     // NodeLocatorId conversion helpers
     executionIdToNodeLocatorId,
-    nodeLocatorIdToExecutionId
+    nodeLocatorIdToExecutionId,
+    // Phase 2: Multi-workflow isolation
+    activePromptIds,
+    promptExecutions,
+    getExecutionState
   }
 })
