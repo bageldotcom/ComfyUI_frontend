@@ -92,6 +92,7 @@ import {
   nextTick,
   onMounted,
   onUnmounted,
+  provide,
   ref,
   shallowRef,
   watch,
@@ -162,6 +163,7 @@ const nodeSearchboxPopoverRef = shallowRef<InstanceType<
 const settingStore = useSettingStore()
 const nodeDefStore = useNodeDefStore()
 const workspaceStore = useWorkspaceStore()
+const workflowStore = useWorkflowStore()
 const canvasStore = useCanvasStore()
 const executionStore = useExecutionStore()
 const toastStore = useToastStore()
@@ -197,6 +199,14 @@ const { shouldRenderVueNodes } = useVueFeatureFlags()
 // Vue node system
 const vueNodeLifecycle = useVueNodeLifecycle()
 const { handleTransformUpdate } = useViewportCulling()
+
+// Multi-workflow isolation: Provide prompt_id for THIS graph's workflow
+const currentWorkflowPromptId = computed(() => {
+  const workflow = workflowStore.activeWorkflow
+  if (!workflow) return undefined
+  return workflowStore.workflowPromptIds.get(workflow.path) ?? undefined
+})
+provide('workflowPromptId', currentWorkflowPromptId)
 
 const handleVueNodeLifecycleReset = async () => {
   if (shouldRenderVueNodes.value) {

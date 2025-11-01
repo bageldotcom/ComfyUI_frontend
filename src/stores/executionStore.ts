@@ -347,6 +347,12 @@ export const useExecutionStore = defineStore('execution', () => {
     state.lastActivity = Date.now()
     activePromptIds.value.add(prompt_id)
 
+    // Multi-workflow isolation: Associate workflow with prompt_id
+    const workflow = queuedPrompts.value[prompt_id]?.workflow
+    if (workflow) {
+      workflowStore.setWorkflowPromptId(workflow.path, prompt_id)
+    }
+
     // Backward compatibility
     lastExecutionError.value = null
     activePromptId.value = prompt_id
@@ -394,6 +400,13 @@ export const useExecutionStore = defineStore('execution', () => {
       state.status = 'completed'
       state.completedAt = Date.now()
       activePromptIds.value.delete(prompt_id)
+
+      // Multi-workflow isolation: Clear workflow association
+      const workflow = queuedPrompts.value[prompt_id]?.workflow
+      if (workflow) {
+        workflowStore.clearWorkflowPromptId(workflow.path)
+      }
+
       cleanupOldExecutions()
     }
 

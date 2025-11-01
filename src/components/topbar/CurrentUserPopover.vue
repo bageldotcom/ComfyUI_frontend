@@ -26,9 +26,10 @@
     <!-- Back to Bagel App button for Bagel users -->
     <template v-if="isBagelUser">
       <Button
-        class="justify-start"
+        class="justify-end"
         label="Back to Bagel App"
-        icon="pi pi-arrow-left"
+        icon="pi pi-arrow-right"
+        icon-pos="right"
         text
         fluid
         severity="secondary"

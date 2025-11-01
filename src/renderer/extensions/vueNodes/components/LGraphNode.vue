@@ -121,6 +121,7 @@
 import { whenever } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, inject, onErrorCaptured, onMounted, ref } from 'vue'
+import type { ComputedRef } from 'vue'
 
 import type { VueNodeData } from '@/composables/graph/useGraphNodeManager'
 import { toggleNodeOptions } from '@/composables/graph/useMoreOptionsMenu'
@@ -187,8 +188,18 @@ const isSelected = computed(() => {
 })
 
 const nodeLocatorId = computed(() => getLocatorIdFromNodeData(nodeData))
-const { executing, progress } = useNodeExecutionState(nodeLocatorId)
 const executionStore = useExecutionStore()
+
+// Multi-workflow isolation: Get prompt_id from parent graph context
+const workflowPromptId = inject<ComputedRef<string | undefined>>(
+  'workflowPromptId',
+  computed(() => undefined)
+)
+const { executing, progress } = useNodeExecutionState(
+  nodeLocatorId,
+  workflowPromptId
+)
+
 const hasExecutionError = computed(
   () => executionStore.lastExecutionErrorNodeId === nodeData.id
 )

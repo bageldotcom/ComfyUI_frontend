@@ -708,6 +708,19 @@ export const useWorkflowStore = defineStore('workflow', () => {
     return createNodeExecutionId([...path, localNodeId])
   }
 
+  /**
+   * Multi-workflow isolation: Track which prompt_id is executing for each workflow
+   */
+  const workflowPromptIds = ref<Map<string, string>>(new Map())
+
+  const setWorkflowPromptId = (workflowPath: string, promptId: string) => {
+    workflowPromptIds.value.set(workflowPath, promptId)
+  }
+
+  const clearWorkflowPromptId = (workflowPath: string) => {
+    workflowPromptIds.value.delete(workflowPath)
+  }
+
   return {
     activeWorkflow,
     attachWorkflow,
@@ -741,7 +754,12 @@ export const useWorkflowStore = defineStore('workflow', () => {
     nodeToNodeLocatorId,
     nodeExecutionIdToNodeLocatorId,
     nodeLocatorIdToNodeId,
-    nodeLocatorIdToNodeExecutionId
+    nodeLocatorIdToNodeExecutionId,
+
+    // Multi-workflow isolation
+    workflowPromptIds,
+    setWorkflowPromptId,
+    clearWorkflowPromptId
   }
 }) satisfies () => WorkflowStore
 
