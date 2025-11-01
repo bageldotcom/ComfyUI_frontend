@@ -432,10 +432,53 @@ export const useWorkflowTemplatesStore = defineStore(
           customTemplates.value = await api.getWorkflowTemplates()
           const locale = i18n.global.locale.value
           coreTemplates.value = await api.getCoreWorkflowTemplates(locale)
+
+          // Load bagel templates with metadata from custom nodes
+          await loadCustomNodeTemplatesWithMetadata()
+
           isLoaded.value = true
         }
       } catch (error) {
         console.error('Error fetching workflow templates:', error)
+      }
+    }
+
+    /**
+     * Load custom node templates that have index.json metadata files
+     * and merge them into coreTemplates for proper categorization
+     */
+    async function loadCustomNodeTemplatesWithMetadata() {
+      try {
+        // Check if bagel custom node has templates
+        if (customTemplates.value['bagel']) {
+          try {
+            // Fetch bagel's index.json which contains full metadata
+            const response = await fetch(
+              api.apiURL('/workflow_templates/bagel/index.json')
+            )
+
+            if (response.ok) {
+              const bagelTemplateCategories: WorkflowTemplates[] =
+                await response.json()
+
+              // Merge bagel templates into coreTemplates
+              if (Array.isArray(bagelTemplateCategories)) {
+                coreTemplates.value = [
+                  ...coreTemplates.value,
+                  ...bagelTemplateCategories
+                ]
+              }
+            }
+          } catch (error) {
+            console.warn('Could not load bagel template metadata:', error)
+            // Fallback to basic template names from customTemplates
+          }
+        }
+      } catch (error) {
+        console.error(
+          'Error loading custom node templates with metadata:',
+          error
+        )
       }
     }
 
