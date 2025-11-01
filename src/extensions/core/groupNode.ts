@@ -10,6 +10,7 @@ import {
   SubgraphNode
 } from '@/lib/litegraph/src/litegraph'
 import { useToastStore } from '@/platform/updates/common/toastStore'
+import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
 import {
   type ComfyLink,
   type ComfyNode,
@@ -1217,10 +1218,24 @@ export class GroupNodeHandler {
     // Draw progress label
     const onDrawForeground = node.onDrawForeground
     const groupData = this.groupData.nodeData
+    const workflowStore = useWorkflowStore()
+    const executionStore = useExecutionStore()
+
     node.onDrawForeground = function (ctx) {
       // @ts-expect-error fixme ts strict error
       onDrawForeground?.apply?.(this, arguments)
-      const progressState = useExecutionStore().nodeProgressStates[this.id]
+
+      // Multi-workflow isolation: Get state from prompt-scoped execution
+      const workflow = workflowStore.activeWorkflow
+      if (!workflow) return
+
+      const promptId = workflowStore.workflowPromptIds.get(workflow.path)
+      if (!promptId) return
+
+      const execution = executionStore.promptExecutions.get(promptId)
+      if (!execution) return
+
+      const progressState = execution.progressStates[this.id]
       if (
         progressState &&
         progressState.state === 'running' &&

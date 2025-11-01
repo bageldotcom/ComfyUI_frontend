@@ -21,24 +21,24 @@ export const useNodeExecutionState = (
   const locatorId = computed(() => toValue(nodeLocatorIdMaybe) ?? '')
   const promptId = computed(() => toValue(promptIdMaybe))
   const executionStore = useExecutionStore()
-  const { nodeLocationProgressStates, isIdle } = storeToRefs(executionStore)
+  const { isIdle } = storeToRefs(executionStore)
 
   const progressState = computed(() => {
     const id = locatorId.value
     if (!id) return undefined
 
-    // If promptId provided, use prompt-scoped state
-    if (promptId.value) {
-      const execution = executionStore.promptExecutions.get(promptId.value)
-      if (!execution) return undefined
-
-      // Extract node ID from locator (format: "graph_id:node_id" or "node_id")
-      const nodeId = id.includes(':') ? id.split(':').pop() : id
-      return nodeId ? execution.progressStates[nodeId] : undefined
+    // Multi-workflow isolation: Always require promptId
+    if (!promptId.value) {
+      // No execution state when workflow is idle (correct behavior)
+      return undefined
     }
 
-    // Fall back to merged global state for backward compatibility
-    return nodeLocationProgressStates.value[id]
+    const execution = executionStore.promptExecutions.get(promptId.value)
+    if (!execution) return undefined
+
+    // Extract node ID from locator (format: "graph_id:node_id" or "node_id")
+    const nodeId = id.includes(':') ? id.split(':').pop() : id
+    return nodeId ? execution.progressStates[nodeId] : undefined
   })
 
   const executing = computed(

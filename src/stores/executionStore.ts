@@ -459,39 +459,27 @@ export const useExecutionStore = defineStore('execution', () => {
   function handleProgressState(e: CustomEvent<ProgressStateWsMessage>) {
     const { nodes, prompt_id } = e.detail
 
-    // Phase 2: Update prompt-scoped state instead of global state (CRITICAL FIX)
-    if (prompt_id) {
-      const state = getExecutionState(prompt_id)
-      state.progressStates = nodes
-      state.lastActivity = Date.now()
-    }
+    // Multi-workflow isolation: Update prompt-scoped state only
+    if (!prompt_id) return
 
-    // Revoke previews for nodes that are starting to execute
-    for (const nodeId in nodes) {
-      const nodeState = nodes[nodeId]
-      if (nodeState.state === 'running' && !nodeProgressStates.value[nodeId]) {
-        // This node just started executing, revoke its previews
-        // Note that we're doing the *actual* node id instead of the display node id
-        // here intentionally. That way, we don't clear the preview every time a new node
-        // within an expanded graph starts executing.
-        const { revokePreviewsByExecutionId } = useNodeOutputStore()
-        revokePreviewsByExecutionId(nodeId)
-      }
-    }
+    const state = getExecutionState(prompt_id)
+    state.progressStates = nodes
+    state.lastActivity = Date.now()
 
-    // Backward compatibility: Update global state for active prompt only
+    // Only revoke previews if this is the active workflow in the active tab
     if (prompt_id === activePromptId.value) {
-      nodeProgressStates.value = nodes
-    }
+      const { revokePreviewsByExecutionId } = useNodeOutputStore()
 
-    // If we have progress for the currently executing node, update it for backwards compatibility
-    if (executingNodeId.value && nodes[executingNodeId.value]) {
-      const nodeState = nodes[executingNodeId.value]
-      _executingNodeProgress.value = {
-        value: nodeState.value,
-        max: nodeState.max,
-        prompt_id: nodeState.prompt_id,
-        node: nodeState.display_node_id || nodeState.node_id
+      for (const nodeId in nodes) {
+        const nodeState = nodes[nodeId]
+        // Check if node just started (wasn't running before)
+        const prevState = state.progressStates[nodeId]
+        if (nodeState.state === 'running' && prevState?.state !== 'running') {
+          // This node just started executing, revoke its previews
+          // Note: Using actual node id instead of display node id intentionally,
+          // so we don't clear preview every time a node within expanded graph starts.
+          revokePreviewsByExecutionId(nodeId)
+        }
       }
     }
   }

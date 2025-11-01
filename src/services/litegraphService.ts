@@ -156,9 +156,20 @@ export const useLitegraphService = () => {
       #setupStrokeStyles() {
         this.strokeStyles['running'] = function (this: LGraphNode) {
           const nodeId = String(this.id)
-          const nodeLocatorId = useWorkflowStore().nodeIdToNodeLocatorId(nodeId)
-          const state =
-            useExecutionStore().nodeLocationProgressStates[nodeLocatorId]?.state
+
+          // Multi-workflow isolation: Get state from prompt-scoped execution
+          const workflowStore = useWorkflowStore()
+          const executionStore = useExecutionStore()
+          const workflow = workflowStore.activeWorkflow
+          if (!workflow) return
+
+          const promptId = workflowStore.workflowPromptIds.get(workflow.path)
+          if (!promptId) return
+
+          const execution = executionStore.promptExecutions.get(promptId)
+          if (!execution) return
+
+          const state = execution.progressStates[nodeId]?.state
           if (state === 'running') {
             return { color: '#0f0' }
           }
@@ -421,9 +432,20 @@ export const useLitegraphService = () => {
       #setupStrokeStyles() {
         this.strokeStyles['running'] = function (this: LGraphNode) {
           const nodeId = String(this.id)
-          const nodeLocatorId = useWorkflowStore().nodeIdToNodeLocatorId(nodeId)
-          const state =
-            useExecutionStore().nodeLocationProgressStates[nodeLocatorId]?.state
+
+          // Multi-workflow isolation: Get state from prompt-scoped execution
+          const workflowStore = useWorkflowStore()
+          const executionStore = useExecutionStore()
+          const workflow = workflowStore.activeWorkflow
+          if (!workflow) return
+
+          const promptId = workflowStore.workflowPromptIds.get(workflow.path)
+          if (!promptId) return
+
+          const execution = executionStore.promptExecutions.get(promptId)
+          if (!execution) return
+
+          const state = execution.progressStates[nodeId]?.state
           if (state === 'running') {
             return { color: '#0f0' }
           }
