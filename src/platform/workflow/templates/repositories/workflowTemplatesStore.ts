@@ -327,11 +327,12 @@ export const useWorkflowTemplatesStore = defineStore(
         })
       }
 
-      // 3. Group categories from JSON dynamically
+      // 3. Process standalone categories (no categoryGroup) and grouped categories
       const categoryGroups = new Map<
         string,
         { title: string; items: NavItemData[] }
       >()
+      const standaloneCategories: NavItemData[] = []
 
       // Process all categories from JSON
       coreTemplates.value.forEach((category) => {
@@ -342,6 +343,7 @@ export const useWorkflowTemplatesStore = defineStore(
         const categoryIcon = category.icon
 
         if (categoryGroup) {
+          // Add to grouped categories
           if (!categoryGroups.has(categoryGroup)) {
             categoryGroups.set(categoryGroup, {
               title: categoryGroup,
@@ -368,8 +370,27 @@ export const useWorkflowTemplatesStore = defineStore(
             ),
             icon: categoryIcon || getCategoryIcon(category.type || 'default')
           })
+        } else {
+          // Add as standalone top-level category
+          const categoryId = `standalone-${category.title.toLowerCase().replace(/\s+/g, '-')}`
+
+          categoryFilters.value.set(categoryId, {
+            category: category.title
+          })
+
+          standaloneCategories.push({
+            id: categoryId,
+            label: st(
+              `templateWorkflows.category.${normalizeI18nKey(category.title)}`,
+              category.title
+            ),
+            icon: categoryIcon || getCategoryIcon(category.type || 'default')
+          })
         }
       })
+
+      // Add standalone categories first (position 3+)
+      standaloneCategories.forEach((item) => items.push(item))
 
       // Add grouped categories
       categoryGroups.forEach((group, groupName) => {
@@ -452,20 +473,20 @@ export const useWorkflowTemplatesStore = defineStore(
         // Check if bagel custom node has templates
         if (customTemplates.value['bagel']) {
           try {
-            // Fetch bagel's index.json which contains full metadata
+            // Fetch bagel's .index.json which contains full metadata
             const response = await fetch(
-              api.apiURL('/workflow_templates/bagel/index.json')
+              api.apiURL('/workflow_templates/bagel/.index.json')
             )
 
             if (response.ok) {
               const bagelTemplateCategories: WorkflowTemplates[] =
                 await response.json()
 
-              // Merge bagel templates into coreTemplates
+              // Prepend bagel templates to appear early in navigation (position 3, after "All" and "Getting Started")
               if (Array.isArray(bagelTemplateCategories)) {
                 coreTemplates.value = [
-                  ...coreTemplates.value,
-                  ...bagelTemplateCategories
+                  ...bagelTemplateCategories,
+                  ...coreTemplates.value
                 ]
               }
             }
