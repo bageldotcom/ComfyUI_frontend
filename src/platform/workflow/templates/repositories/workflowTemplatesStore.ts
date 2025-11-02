@@ -426,16 +426,16 @@ export const useWorkflowTemplatesStore = defineStore(
           )
         ).sort()
 
-        const extensionItems: NavItemData[] = extensionModules.map(
-          (moduleName) => ({
+        const extensionItems: NavItemData[] = extensionModules
+          .filter((moduleName) => moduleName !== 'bagel')
+          .map((moduleName) => ({
             id: `extension-${moduleName}`,
             label: st(
               `templateWorkflows.category.${normalizeI18nKey(moduleName)}`,
               moduleName
             ),
             icon: getCategoryIcon('extensions')
-          })
-        )
+          }))
 
         items.push({
           title: st('templateWorkflows.category.Extensions', 'Extensions'),
