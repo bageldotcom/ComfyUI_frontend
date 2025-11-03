@@ -2,6 +2,7 @@ import _ from 'es-toolkit/compat'
 import { defineStore } from 'pinia'
 import { computed, ref, toRaw } from 'vue'
 
+import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
 import type {
   ComfyWorkflowJSON,
   NodeId
@@ -386,12 +387,19 @@ export class TaskItemImpl {
     // Link to execution tracking for running/pending workflows
     if (this.isRunning || this.taskType === 'Pending') {
       const executionStore = useExecutionStore()
+      const workflowStore = useWorkflowStore()
 
       // Phase 1 compatibility: Set single active prompt
       executionStore.activePromptId = this.promptId
 
       // Phase 2: Multi-workflow support
       executionStore.activePromptIds.add(this.promptId)
+
+      // CRITICAL: Link workflow path to promptId for GraphCanvas to provide to nodes
+      const activeWorkflow = workflowStore.activeWorkflow
+      if (activeWorkflow) {
+        workflowStore.setWorkflowPromptId(activeWorkflow.path, this.promptId)
+      }
 
       // Initialize execution state if not exists
       if (!executionStore.promptExecutions.has(this.promptId)) {
