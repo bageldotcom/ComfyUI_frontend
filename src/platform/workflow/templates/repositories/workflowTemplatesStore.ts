@@ -488,6 +488,10 @@ export const useWorkflowTemplatesStore = defineStore(
                   ...bagelTemplateCategories,
                   ...coreTemplates.value
                 ]
+
+                // Remove bagel from customTemplates to prevent duplication
+                // (bagel templates now in coreTemplates with full .index.json metadata)
+                delete customTemplates.value['bagel']
               }
             }
           } catch (error) {
