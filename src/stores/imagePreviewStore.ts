@@ -1,6 +1,7 @@
 import { useTimeoutFn } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { inject, ref, watch } from 'vue'
+import type { Ref } from 'vue'
 
 import type { LGraphNode, SubgraphNode } from '@/lib/litegraph/src/litegraph'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
@@ -39,6 +40,7 @@ interface SetOutputOptions {
 export const useNodeOutputStore = defineStore('nodeOutput', () => {
   const { nodeIdToNodeLocatorId, nodeToNodeLocatorId } = useWorkflowStore()
   const { executionIdToNodeLocatorId } = useExecutionStore()
+  const executionStore = useExecutionStore()
   const scheduledRevoke: Record<NodeLocatorId, { stop: () => void }> = {}
 
   function scheduleRevoke(locator: NodeLocatorId, cb: () => void) {
@@ -52,21 +54,48 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
     scheduledRevoke[locator] = { stop }
   }
 
-  const nodeOutputs = ref<Record<string, ExecutedWsMessage['output']>>({})
+  // NEW STRUCTURE (ONLY source of truth) - promptId-scoped storage
+  const workflowNodeOutputs = ref<
+    Map<string, Record<string, ExecutedWsMessage['output']>>
+  >(new Map())
+  // Map<promptId, Record<nodeId, Output>>
 
-  // Reactive state for node preview images - mirrors app.nodePreviewImages
-  const nodePreviewImages = ref<Record<string, string[]>>(
-    app.nodePreviewImages || {}
+  const workflowPreviewImages = ref<Map<string, Record<string, string[]>>>(
+    new Map()
   )
+  // Map<promptId, Record<nodeId, blobUrls[]>>
+
+  function getNodeOutputsByLocatorId(
+    nodeLocatorId: string
+  ): ExecutedWsMessage['output'] | undefined {
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+
+    if (!promptId) {
+      console.error('getNodeOutputsByLocatorId: No workflowPromptId')
+      return undefined
+    }
+
+    return workflowNodeOutputs.value.get(promptId)?.[nodeLocatorId]
+  }
 
   function getNodeOutputs(
     node: LGraphNode
   ): ExecutedWsMessage['output'] | undefined {
-    return app.nodeOutputs[nodeToNodeLocatorId(node)]
+    const locatorId = nodeToNodeLocatorId(node)
+    return getNodeOutputsByLocatorId(locatorId)
+  }
+
+  function getNodePreviewImages(nodeId: string): string[] | undefined {
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+
+    if (!promptId) return undefined
+
+    return workflowPreviewImages.value.get(promptId)?.[nodeId]
   }
 
   function getNodePreviews(node: LGraphNode): string[] | undefined {
-    return app.nodePreviewImages[nodeToNodeLocatorId(node)]
+    const locatorId = nodeToNodeLocatorId(node)
+    return getNodePreviewImages(locatorId)
   }
 
   /**
@@ -129,8 +158,26 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
     outputs: ExecutedWsMessage['output'] | ResultItem,
     options: SetOutputOptions = {}
   ) {
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+
+    // STRICT: promptId is mandatory
+    if (!promptId) {
+      console.error(
+        'setOutputsByLocatorId: No workflowPromptId - cannot store outputs'
+      )
+      return
+    }
+
+    // Ensure promptId map exists
+    if (!workflowNodeOutputs.value.has(promptId)) {
+      workflowNodeOutputs.value.set(promptId, {})
+    }
+
+    // Store scoped by promptId
+    const workflowOutputs = workflowNodeOutputs.value.get(promptId)!
+
     if (options.merge) {
-      const existingOutput = app.nodeOutputs[nodeLocatorId]
+      const existingOutput = workflowOutputs[nodeLocatorId]
       if (existingOutput && outputs) {
         for (const k in outputs) {
           const existingValue = existingOutput[k]
@@ -146,8 +193,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
       }
     }
 
-    app.nodeOutputs[nodeLocatorId] = outputs
-    nodeOutputs.value[nodeLocatorId] = outputs
+    workflowOutputs[nodeLocatorId] = outputs
   }
 
   function setNodeOutputs(
@@ -196,6 +242,28 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
     setOutputsByLocatorId(nodeLocatorId, outputs, options)
   }
 
+  function setNodePreviewImagesByLocatorId(nodeId: string, blobUrls: string[]) {
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+
+    if (!promptId) {
+      console.error('setNodePreviewImages: No workflowPromptId')
+      return
+    }
+
+    if (!workflowPreviewImages.value.has(promptId)) {
+      workflowPreviewImages.value.set(promptId, {})
+    }
+
+    const workflowPreviews = workflowPreviewImages.value.get(promptId)!
+
+    // Revoke old blob URLs before overwriting (prevent memory leak)
+    if (workflowPreviews[nodeId]) {
+      workflowPreviews[nodeId].forEach((url) => URL.revokeObjectURL(url))
+    }
+
+    workflowPreviews[nodeId] = blobUrls
+  }
+
   /**
    * Set node preview images by execution ID (hierarchical ID from backend).
    * Converts the execution ID to a NodeLocatorId before storing.
@@ -213,8 +281,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
       scheduledRevoke[nodeLocatorId].stop()
       delete scheduledRevoke[nodeLocatorId]
     }
-    app.nodePreviewImages[nodeLocatorId] = previewImages
-    nodePreviewImages.value[nodeLocatorId] = previewImages
+    setNodePreviewImagesByLocatorId(nodeLocatorId, previewImages)
   }
 
   /**
@@ -233,8 +300,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
       scheduledRevoke[nodeLocatorId].stop()
       delete scheduledRevoke[nodeLocatorId]
     }
-    app.nodePreviewImages[nodeLocatorId] = previewImages
-    nodePreviewImages.value[nodeLocatorId] = previewImages
+    setNodePreviewImagesByLocatorId(nodeLocatorId, previewImages)
   }
 
   /**
@@ -258,15 +324,20 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * @param nodeLocatorId - The node locator ID
    */
   function revokePreviewsByLocatorId(nodeLocatorId: NodeLocatorId) {
-    const previews = app.nodePreviewImages[nodeLocatorId]
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    if (!promptId) return
+
+    const previews = workflowPreviewImages.value.get(promptId)?.[nodeLocatorId]
     if (!previews?.[Symbol.iterator]) return
 
     for (const url of previews) {
       URL.revokeObjectURL(url)
     }
 
-    delete app.nodePreviewImages[nodeLocatorId]
-    delete nodePreviewImages.value[nodeLocatorId]
+    const workflowPreviews = workflowPreviewImages.value.get(promptId)
+    if (workflowPreviews) {
+      delete workflowPreviews[nodeLocatorId]
+    }
   }
 
   /**
@@ -274,17 +345,54 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * Frees memory allocated to all image preview blobs.
    */
   function revokeAllPreviews() {
-    for (const nodeLocatorId of Object.keys(app.nodePreviewImages)) {
-      const previews = app.nodePreviewImages[nodeLocatorId]
-      if (!previews?.[Symbol.iterator]) continue
+    for (const [_promptId, previews] of workflowPreviewImages.value.entries()) {
+      for (const nodeId of Object.keys(previews)) {
+        const urls = previews[nodeId]
+        if (!urls?.[Symbol.iterator]) continue
 
-      for (const url of previews) {
-        URL.revokeObjectURL(url)
+        for (const url of urls) {
+          URL.revokeObjectURL(url)
+        }
       }
     }
-    app.nodePreviewImages = {}
-    nodePreviewImages.value = {}
+    workflowPreviewImages.value.clear()
+    workflowNodeOutputs.value.clear()
   }
+
+  // Cleanup on workflow completion
+  function cleanupWorkflow(promptId: string) {
+    // Cleanup outputs
+    workflowNodeOutputs.value.delete(promptId)
+
+    // Cleanup preview images + revoke blob URLs
+    const previews = workflowPreviewImages.value.get(promptId)
+    if (previews) {
+      Object.values(previews)
+        .flat()
+        .forEach((url) => {
+          URL.revokeObjectURL(url)
+        })
+      workflowPreviewImages.value.delete(promptId)
+    }
+  }
+
+  // Watch for workflow completion and cleanup
+  watch(
+    () => executionStore.promptExecutions,
+    (executions) => {
+      executions.forEach((state, promptId) => {
+        // Cleanup on any terminal status to prevent memory leaks
+        if (
+          ['completed', 'error', 'cancelled', 'interrupted'].includes(
+            state.status
+          )
+        ) {
+          cleanupWorkflow(promptId)
+        }
+      })
+    },
+    { deep: true }
+  )
 
   /**
    * Revoke all preview of a subgraph node and the graph it contains.
@@ -305,20 +413,24 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * Clears both outputs and preview images
    */
   function removeNodeOutputs(nodeId: number | string) {
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    if (!promptId) return false
+
     const nodeLocatorId = nodeIdToNodeLocatorId(Number(nodeId))
     if (!nodeLocatorId) return false
 
-    // Clear from app.nodeOutputs
-    const hadOutputs = !!app.nodeOutputs[nodeLocatorId]
-    delete app.nodeOutputs[nodeLocatorId]
+    const workflowOutputs = workflowNodeOutputs.value.get(promptId)
+    const hadOutputs = !!workflowOutputs?.[nodeLocatorId]
 
-    // Clear from reactive state
-    delete nodeOutputs.value[nodeLocatorId]
+    if (workflowOutputs) {
+      delete workflowOutputs[nodeLocatorId]
+    }
 
     // Clear preview images
-    if (app.nodePreviewImages[nodeLocatorId]) {
-      delete app.nodePreviewImages[nodeLocatorId]
-      delete nodePreviewImages.value[nodeLocatorId]
+    const workflowPreviews = workflowPreviewImages.value.get(promptId)
+    if (workflowPreviews?.[nodeLocatorId]) {
+      workflowPreviews[nodeLocatorId].forEach((url) => URL.revokeObjectURL(url))
+      delete workflowPreviews[nodeLocatorId]
     }
 
     return hadOutputs
@@ -327,41 +439,62 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   function restoreOutputs(
     outputs: Record<string, ExecutedWsMessage['output']>
   ) {
-    app.nodeOutputs = outputs
-    nodeOutputs.value = outputs
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    if (!promptId) {
+      console.error('restoreOutputs: No workflowPromptId')
+      return
+    }
+
+    workflowNodeOutputs.value.set(promptId, outputs)
   }
 
   function updateNodeImages(node: LGraphNode) {
     if (!node.images?.length) return
 
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    if (!promptId) return
+
     const nodeLocatorId = nodeIdToNodeLocatorId(node.id)
 
     if (nodeLocatorId) {
-      const existingOutputs = app.nodeOutputs[nodeLocatorId]
+      const workflowOutputs = workflowNodeOutputs.value.get(promptId)
+      const existingOutputs = workflowOutputs?.[nodeLocatorId]
 
-      if (existingOutputs) {
+      if (existingOutputs && workflowOutputs) {
         const updatedOutputs = {
           ...existingOutputs,
           images: node.images
         }
 
-        app.nodeOutputs[nodeLocatorId] = updatedOutputs
-        nodeOutputs.value[nodeLocatorId] = updatedOutputs
+        workflowOutputs[nodeLocatorId] = updatedOutputs
       }
     }
   }
 
   function resetAllOutputsAndPreviews() {
-    app.nodeOutputs = {}
-    nodeOutputs.value = {}
-    revokeAllPreviews()
+    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    if (!promptId) return
+
+    workflowNodeOutputs.value.delete(promptId)
+
+    const previews = workflowPreviewImages.value.get(promptId)
+    if (previews) {
+      Object.values(previews)
+        .flat()
+        .forEach((url) => {
+          URL.revokeObjectURL(url)
+        })
+      workflowPreviewImages.value.delete(promptId)
+    }
   }
 
   return {
     // Getters
     getNodeOutputs,
+    getNodeOutputsByLocatorId,
     getNodeImageUrls,
     getNodePreviews,
+    getNodePreviewImages,
     getPreviewParam,
 
     // Setters
@@ -378,9 +511,10 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
     removeNodeOutputs,
     restoreOutputs,
     resetAllOutputsAndPreviews,
+    cleanupWorkflow,
 
-    // State
-    nodeOutputs,
-    nodePreviewImages
+    // State (new promptId-scoped storage)
+    workflowNodeOutputs,
+    workflowPreviewImages
   }
 })

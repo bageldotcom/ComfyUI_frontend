@@ -19,7 +19,10 @@ import type { IBaseWidget } from '@/lib/litegraph/src/types/widgets'
 import { useSettingStore } from '@/platform/settings/settingStore'
 import { useToastStore } from '@/platform/updates/common/toastStore'
 import { useWorkflowService } from '@/platform/workflow/core/services/workflowService'
-import { ComfyWorkflow } from '@/platform/workflow/management/stores/workflowStore'
+import {
+  ComfyWorkflow,
+  useWorkflowStore
+} from '@/platform/workflow/management/stores/workflowStore'
 import { useWorkflowValidation } from '@/platform/workflow/validation/composables/useWorkflowValidation'
 import {
   type ComfyApiWorkflow,
@@ -28,6 +31,7 @@ import {
   type NodeId,
   isSubgraphDefinition
 } from '@/platform/workflow/validation/schemas/workflowSchema'
+import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
 import type {
   ExecutionErrorWsMessage,
   NodeError,
@@ -155,9 +159,8 @@ export class ComfyApp {
   ui: ComfyUI
   // @ts-expect-error fixme ts strict error
   extensionManager: ExtensionManager
-  // @ts-expect-error fixme ts strict error
   _nodeOutputs: Record<string, any>
-  nodePreviewImages: Record<string, string[]>
+  _nodePreviewImages: Record<string, string[]>
 
   private rootGraphInternal: LGraph | undefined
 
@@ -301,26 +304,48 @@ export class ComfyApp {
     this.menu = new ComfyAppMenu(this)
 
     /**
+     * DEPRECATED: Use imagePreviewStore instead
      * Stores the execution output data for each node
      * @type {Record<string, any>}
      */
-    this.nodeOutputs = {}
+    this._nodeOutputs = {}
 
     /**
+     * DEPRECATED: Use imagePreviewStore instead
      * Stores the preview image data for each node
      * @type {Record<string, Image>}
      */
-    this.nodePreviewImages = {}
+    this._nodePreviewImages = {}
   }
 
   get nodeOutputs() {
+    console.warn(
+      'DEPRECATED: app.nodeOutputs is deprecated. Use imagePreviewStore instead.'
+    )
     return this._nodeOutputs
   }
 
   set nodeOutputs(value) {
+    console.warn(
+      'DEPRECATED: app.nodeOutputs is deprecated. Use imagePreviewStore instead.'
+    )
     this._nodeOutputs = value
     if (this.vueAppReady)
       useExtensionService().invokeExtensions('onNodeOutputsUpdated', value)
+  }
+
+  get nodePreviewImages(): Record<string, string[]> {
+    console.warn(
+      'DEPRECATED: app.nodePreviewImages is deprecated. Use imagePreviewStore instead.'
+    )
+    return this._nodePreviewImages
+  }
+
+  set nodePreviewImages(value: Record<string, string[]>) {
+    console.warn(
+      'DEPRECATED: app.nodePreviewImages is deprecated. Use imagePreviewStore instead.'
+    )
+    this._nodePreviewImages = value
   }
 
   /**
@@ -425,8 +450,8 @@ export class ComfyApp {
             node.images = ComfyApp.clipspace.images
           }
 
-          if (app.nodeOutputs[node.id + ''])
-            app.nodeOutputs[node.id + ''].images = node.images
+          // Update node outputs with new images
+          useNodeOutputStore().updateNodeImages(node)
         }
 
         if (ComfyApp.clipspace.imgs) {
@@ -1178,6 +1203,40 @@ export class ComfyApp {
     try {
       // @ts-expect-error Discrepancies between zod and litegraph - in progress
       this.graph.configure(graphData)
+
+      // Set canvas-local promptId (MANDATORY for multi-user isolation)
+      const workflowStore = useWorkflowStore()
+      const canvasStore = useCanvasStore()
+
+      if (workflow && typeof workflow === 'string') {
+        // Get or generate promptId for this workflow
+        let promptId = workflowStore.workflowPromptIds.get(workflow)
+
+        if (!promptId) {
+          // Generate new promptId for fresh workflow
+          promptId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          workflowStore.setWorkflowPromptId(workflow, promptId)
+        }
+
+        // Set canvas-local promptId (MANDATORY)
+        canvasStore.setCurrentPromptId(promptId)
+        console.info(`Loaded workflow ${workflow} with promptId ${promptId}`)
+      } else if (workflowStore.activeWorkflow) {
+        // Fallback: use active workflow
+        const workflowPath = workflowStore.activeWorkflow.path
+        let promptId = workflowStore.workflowPromptIds.get(workflowPath)
+
+        if (!promptId) {
+          promptId = `workflow_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          workflowStore.setWorkflowPromptId(workflowPath, promptId)
+        }
+
+        canvasStore.setCurrentPromptId(promptId)
+        console.info(
+          `Loaded active workflow ${workflowPath} with promptId ${promptId}`
+        )
+      }
+
       if (
         restore_view &&
         useSettingStore().get('Comfy.EnableWorkflowViewRestore')

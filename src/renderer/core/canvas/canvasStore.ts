@@ -100,6 +100,13 @@ export const useCanvasStore = defineStore('canvas', () => {
   const currentGraph = shallowRef<LGraph | null>(null)
   const isInSubgraph = ref(false)
 
+  // Per-canvas workflow tracking
+  const currentPromptId = ref<string | null>(null)
+
+  const setCurrentPromptId = (promptId: string) => {
+    currentPromptId.value = promptId
+  }
+
   // Provide selection state to all Vue nodes
   const selectedNodeIds = computed(
     () =>
@@ -144,6 +151,8 @@ export const useCanvasStore = defineStore('canvas', () => {
     initScaleSync,
     cleanupScaleSync,
     currentGraph,
-    isInSubgraph
+    isInSubgraph,
+    currentPromptId,
+    setCurrentPromptId
   }
 })

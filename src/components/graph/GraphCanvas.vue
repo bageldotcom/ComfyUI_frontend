@@ -163,7 +163,6 @@ const nodeSearchboxPopoverRef = shallowRef<InstanceType<
 const settingStore = useSettingStore()
 const nodeDefStore = useNodeDefStore()
 const workspaceStore = useWorkspaceStore()
-const workflowStore = useWorkflowStore()
 const canvasStore = useCanvasStore()
 const executionStore = useExecutionStore()
 const toastStore = useToastStore()
@@ -202,9 +201,14 @@ const { handleTransformUpdate } = useViewportCulling()
 
 // Multi-workflow isolation: Provide prompt_id for THIS graph's workflow
 const currentWorkflowPromptId = computed(() => {
-  const workflow = workflowStore.activeWorkflow
-  if (!workflow) return undefined
-  return workflowStore.workflowPromptIds.get(workflow.path) ?? undefined
+  // Canvas state is ONLY source of truth
+  const promptId = canvasStore.currentPromptId
+
+  if (!promptId) {
+    console.warn('GraphCanvas: No currentPromptId - workflow not initialized')
+  }
+
+  return promptId
 })
 provide('workflowPromptId', currentWorkflowPromptId)
 

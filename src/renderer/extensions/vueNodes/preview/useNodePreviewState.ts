@@ -1,4 +1,3 @@
-import { storeToRefs } from 'pinia'
 import { computed, toValue } from 'vue'
 import type { MaybeRefOrGetter, Ref } from 'vue'
 
@@ -13,14 +12,14 @@ export const useNodePreviewState = (
 ) => {
   const nodeId = toValue(nodeIdMaybe)
   const workflowStore = useWorkflowStore()
-  const { nodePreviewImages } = storeToRefs(useNodeOutputStore())
+  const nodeOutputStore = useNodeOutputStore()
 
   const locatorId = computed(() => workflowStore.nodeIdToNodeLocatorId(nodeId))
 
   const previewUrls = computed(() => {
     const key = locatorId.value
     if (!key) return undefined
-    const urls = nodePreviewImages.value[key]
+    const urls = nodeOutputStore.getNodePreviewImages(key)
     return urls?.length ? urls : undefined
   })
 

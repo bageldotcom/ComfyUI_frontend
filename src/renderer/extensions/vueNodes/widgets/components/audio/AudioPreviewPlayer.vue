@@ -234,7 +234,9 @@ const nodeOutputStore = useNodeOutputStore()
 const audioUrlFromOutput = computed(() => {
   if (!isOutputNodeRef.value || !nodeLocatorId.value) return ''
 
-  const nodeOutput = nodeOutputStore.nodeOutputs[nodeLocatorId.value]
+  const nodeOutput = nodeOutputStore.getNodeOutputsByLocatorId(
+    nodeLocatorId.value
+  )
   if (!nodeOutput?.audio || nodeOutput.audio.length === 0) return ''
 
   const audio = nodeOutput.audio[0]

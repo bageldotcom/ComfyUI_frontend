@@ -4,6 +4,7 @@ import { type StatusWsMessageStatus, type TaskItem } from '@/schemas/apiSchema'
 import { useDialogService } from '@/services/dialogService'
 import { useLitegraphService } from '@/services/litegraphService'
 import { useCommandStore } from '@/stores/commandStore'
+import { useNodeOutputStore } from '@/stores/imagePreviewStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 
 import { api } from './api'
@@ -277,11 +278,12 @@ class ComfyList {
                       false
                     )
                     if ('outputs' in item) {
-                      app.nodeOutputs = {}
+                      const outputs: Record<string, any> = {}
                       for (const [key, value] of Object.entries(item.outputs)) {
                         const realKey = item['meta']?.[key]?.display_node ?? key
-                        app.nodeOutputs[realKey] = value
+                        outputs[realKey] = value
                       }
+                      useNodeOutputStore().restoreOutputs(outputs)
                     }
                   }
                 }),
