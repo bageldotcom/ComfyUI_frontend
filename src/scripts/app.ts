@@ -1352,6 +1352,7 @@ export class ComfyApp {
 
     this.processingQueue = true
     const executionStore = useExecutionStore()
+    const canvasStore = useCanvasStore()
     executionStore.lastNodeErrors = null
 
     let comfyOrgAuthToken = await useFirebaseAuthStore().getIdToken()
@@ -1390,6 +1391,8 @@ export class ComfyApp {
                     workflow: useWorkspaceStore().workflow
                       .activeWorkflow as ComfyWorkflow
                   })
+                  // Update canvas promptId to match execution promptId
+                  canvasStore.setCurrentPromptId(res.prompt_id)
                 }
               } catch (error) {}
             }
