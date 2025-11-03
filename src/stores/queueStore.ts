@@ -18,6 +18,7 @@ import type {
 import { api } from '@/scripts/api'
 import type { ComfyApp } from '@/scripts/app'
 import { useExtensionService } from '@/services/extensionService'
+import { useExecutionStore } from '@/stores/executionStore'
 import { useNodeOutputStore } from '@/stores/imagePreviewStore'
 
 // Task type used in the API.
@@ -381,6 +382,35 @@ export class TaskItemImpl {
       return
     }
     await app.loadGraphData(toRaw(this.workflow))
+
+    // Link to execution tracking for running/pending workflows
+    if (this.isRunning || this.taskType === 'Pending') {
+      const executionStore = useExecutionStore()
+
+      // Phase 1 compatibility: Set single active prompt
+      executionStore.activePromptId = this.promptId
+
+      // Phase 2: Multi-workflow support
+      executionStore.activePromptIds.add(this.promptId)
+
+      // Initialize execution state if not exists
+      if (!executionStore.promptExecutions.has(this.promptId)) {
+        executionStore.promptExecutions.set(this.promptId, {
+          promptId: this.promptId,
+          userId:
+            (this.extraData?.extra_pnginfo as any)?.workflow_metadata
+              ?.user_id || 'default',
+          nodes: {},
+          progressStates: {},
+          outputs: {},
+          status: this.isRunning ? 'running' : 'queued',
+          startedAt: this.isRunning ? Date.now() : null,
+          completedAt: null,
+          lastActivity: Date.now()
+        })
+      }
+    }
+
     if (this.outputs) {
       const nodeOutputsStore = useNodeOutputStore()
       const rawOutputs = toRaw(this.outputs)

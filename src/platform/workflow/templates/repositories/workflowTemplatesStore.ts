@@ -491,7 +491,9 @@ export const useWorkflowTemplatesStore = defineStore(
 
                 // Remove bagel from customTemplates to prevent duplication
                 // (bagel templates now in coreTemplates with full .index.json metadata)
-                delete customTemplates.value['bagel']
+                // IMPORTANT: Must replace entire object (not delete) to trigger shallowRef reactivity
+                const { bagel, ...remainingTemplates } = customTemplates.value
+                customTemplates.value = remainingTemplates
               }
             }
           } catch (error) {
