@@ -1343,12 +1343,12 @@ export class ComfyApp {
     batchCount: number = 1,
     queueNodeIds?: NodeExecutionId[]
   ): Promise<boolean> {
-    this.queueItems.push({ number, batchCount, queueNodeIds })
-
     // Only have one action process the items so each one gets a unique seed correctly
     if (this.processingQueue) {
       return false
     }
+
+    this.queueItems.push({ number, batchCount, queueNodeIds })
 
     this.processingQueue = true
     const executionStore = useExecutionStore()
