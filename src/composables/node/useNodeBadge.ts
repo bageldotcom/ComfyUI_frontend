@@ -1,5 +1,5 @@
 import _ from 'es-toolkit/compat'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 import { useNodePricing } from '@/composables/node/useNodePricing'
 import { useComputedWithWidgetWatch } from '@/composables/node/useWatchWidget'
@@ -115,14 +115,27 @@ export const useNodeBadge = () => {
           const hasDynamicPricing =
             typeof pricingConfig?.displayPrice === 'function'
 
+          // Reactive price text (handles async API calls)
+          const priceText = ref('Loading...')
+
+          const updatePrice = async () => {
+            const priceResult = nodePricing.getNodeDisplayPrice(node)
+            if (priceResult instanceof Promise) {
+              priceText.value = await priceResult
+            } else {
+              priceText.value = priceResult
+            }
+          }
+
+          // Initial price load
+          void updatePrice()
+
           let creditsBadge
           const createBadge = () => {
-            const price = nodePricing.getNodeDisplayPrice(node)
-
             const isLightTheme =
               colorPaletteStore.completedActivePalette.light_theme
             return new LGraphBadge({
-              text: price,
+              text: priceText.value,
               iconOptions: {
                 unicode: '\ue96b',
                 fontFamily: 'PrimeIcons',
@@ -155,10 +168,20 @@ export const useNodeBadge = () => {
             })
 
             creditsBadge = computedWithWidgetWatch(createBadge)
+
+            // Watch for widget changes and update price
+            watch(creditsBadge, () => {
+              void updatePrice()
+            })
           } else {
             // For static pricing nodes, use regular computed
             creditsBadge = computed(createBadge)
           }
+
+          // Watch priceText changes to trigger badge update
+          watch(priceText, () => {
+            app.graph?.setDirtyCanvas(true, true)
+          })
 
           node.badges.push(() => creditsBadge.value)
         }
