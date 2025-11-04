@@ -253,7 +253,7 @@ async function fetchBagelPricing(params: {
     }
 
     const data = await response.json()
-    const costUsd = data.total_cost_usd || 0
+    const costUsd = data.estimated_cost_usd || data.total_cost_usd || 0
     return `$${costUsd.toFixed(2)}/Run`
   } catch (error) {
     return '$0.00-5.00/Run'
@@ -1702,7 +1702,8 @@ const apiNodeCosts: Record<
       const audioWidget = node.widgets?.find((w) => w.name === 'generate_audio')
 
       if (!modelWidget || !durationWidget) {
-        return 'Loading...'
+        // Widgets not ready yet - return sentinel value to trigger badge watcher
+        return 'Pending...'
       }
 
       return await fetchBagelPricing({
@@ -1723,7 +1724,7 @@ const apiNodeCosts: Record<
       )
 
       if (!modelWidget) {
-        return 'Loading...'
+        return 'Pending...'
       }
 
       return await fetchBagelPricing({
@@ -1739,6 +1740,10 @@ const apiNodeCosts: Record<
       const qualityWidget = node.widgets?.find((w) => w.name === 'quality')
       const durationWidget = node.widgets?.find((w) => w.name === 'duration')
 
+      if (!node.widgets || node.widgets.length === 0) {
+        return 'Pending...'
+      }
+
       return await fetchBagelPricing({
         model: 'bytedance/seedance/v1/pro/text-to-video',
         duration: Number(durationWidget?.value || 5),
@@ -1752,6 +1757,10 @@ const apiNodeCosts: Record<
       const durationWidget = node.widgets?.find((w) => w.name === 'duration')
       const audioWidget = node.widgets?.find((w) => w.name === 'generate_audio')
 
+      if (!node.widgets || node.widgets.length === 0) {
+        return 'Pending...'
+      }
+
       return await fetchBagelPricing({
         model: String(modelWidget?.value || 'veo3'),
         duration: Number(durationWidget?.value || 8),
@@ -1763,6 +1772,10 @@ const apiNodeCosts: Record<
     displayPrice: async (node: LGraphNode): Promise<string> => {
       const widthWidget = node.widgets?.find((w) => w.name === 'width')
       const heightWidget = node.widgets?.find((w) => w.name === 'height')
+
+      if (!node.widgets || node.widgets.length === 0) {
+        return 'Pending...'
+      }
 
       return await fetchBagelPricing({
         model: 'paris-ddm-v1.0',
@@ -1777,6 +1790,10 @@ const apiNodeCosts: Record<
       const resolutionWidget = node.widgets?.find(
         (w) => w.name === 'resolution'
       )
+
+      if (!node.widgets || node.widgets.length === 0) {
+        return 'Pending...'
+      }
 
       return await fetchBagelPricing({
         model: String(modelWidget?.value || 'wan-2.2-ti2v-5b'),

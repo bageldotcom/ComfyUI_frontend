@@ -121,7 +121,15 @@ export const useNodeBadge = () => {
           const updatePrice = async () => {
             const priceResult = nodePricing.getNodeDisplayPrice(node)
             if (priceResult instanceof Promise) {
-              priceText.value = await priceResult
+              const result = await priceResult
+              priceText.value = result
+
+              // If widgets aren't ready yet (Pending...), retry after delay
+              if (result === 'Pending...') {
+                setTimeout(() => {
+                  void updatePrice()
+                }, 200)
+              }
             } else {
               priceText.value = priceResult
             }
