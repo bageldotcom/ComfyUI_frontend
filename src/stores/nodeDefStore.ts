@@ -411,12 +411,14 @@ export const useNodeDefStore = defineStore('nodeDef', () => {
       }
     })
 
-    // Filter out API nodes that require ComfyOrg cloud authentication
     registerNodeDefFilter({
       id: 'bagel.apiNodes',
       name: 'Hide API Nodes',
       description: 'Hides API nodes that require ComfyOrg cloud authentication',
       predicate: (nodeDef) => {
+        if (nodeDef.category?.startsWith('bagel')) {
+          return true
+        }
         return !nodeDef.api_node
       }
     })
