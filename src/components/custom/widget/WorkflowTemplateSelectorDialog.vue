@@ -295,21 +295,6 @@
                         {{ getTemplateDescription(template) }}
                       </p>
                     </div>
-                    <div
-                      v-if="template.tutorialUrl"
-                      class="flex flex-col-reverse justify-center"
-                    >
-                      <IconButton
-                        v-if="hoveredTemplate === template.name"
-                        v-tooltip.bottom="$t('g.seeTutorial')"
-                        v-bind="$attrs"
-                        type="primary"
-                        size="sm"
-                        @click.stop="openTutorial(template)"
-                      >
-                        <i class="icon-[lucide--info] size-4" />
-                      </IconButton>
-                    </div>
                   </div>
                 </div>
               </CardBottom>
@@ -383,7 +368,6 @@ import ProgressSpinner from 'primevue/progressspinner'
 import { computed, onBeforeUnmount, provide, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import IconButton from '@/components/button/IconButton.vue'
 import IconTextButton from '@/components/button/IconTextButton.vue'
 import CardBottom from '@/components/card/CardBottom.vue'
 import CardContainer from '@/components/card/CardContainer.vue'
@@ -437,13 +421,6 @@ const getBaseThumbnailSrc = (template: TemplateInfo) => {
 const getOverlayThumbnailSrc = (template: TemplateInfo) => {
   const sm = getEffectiveSourceModule(template)
   return getTemplateThumbnailUrl(template, sm, sm === 'default' ? '2' : '')
-}
-
-// Open tutorial in new tab
-const openTutorial = (template: TemplateInfo) => {
-  if (template.tutorialUrl) {
-    window.open(template.tutorialUrl, '_blank')
-  }
 }
 
 // Get navigation items from the store, with skeleton items while loading
