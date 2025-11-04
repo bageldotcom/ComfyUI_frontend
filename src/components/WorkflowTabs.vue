@@ -81,6 +81,7 @@ function formatTime(timestamp: number | null): string {
 
 <style scoped>
 .workflow-tabs {
+  display: none;
   position: fixed;
   top: 70px;
   right: 20px;
