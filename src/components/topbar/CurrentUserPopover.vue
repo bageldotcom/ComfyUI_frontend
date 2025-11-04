@@ -35,7 +35,6 @@
         severity="secondary"
         @click="handleBackToBagel"
       />
-      <Divider class="my-2" />
     </template>
 
     <!-- Hide User Settings for Bagel users -->
