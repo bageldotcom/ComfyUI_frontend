@@ -231,7 +231,7 @@ async function fetchBagelPricing(params: {
   generate_audio?: boolean
 }): Promise<string> {
   try {
-    // In multi-user mode, the middleware injects bagel-api-key header automatically
+    // In multi-user mode, the middleware injects X-API-KEY header automatically
     // In self-hosted mode, the backend uses BAGEL_API_KEY env var
     // So we don't need to manually add auth headers here
     const response = await fetch('/api/v1/instant/pricing/estimate', {
