@@ -1,10 +1,10 @@
 import { useTimeoutFn } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { inject, ref, watch } from 'vue'
-import type { Ref } from 'vue'
+import { ref, watch } from 'vue'
 
 import type { LGraphNode, SubgraphNode } from '@/lib/litegraph/src/litegraph'
 import { useWorkflowStore } from '@/platform/workflow/management/stores/workflowStore'
+import { useCanvasStore } from '@/renderer/core/canvas/canvasStore'
 import type {
   ExecutedWsMessage,
   ResultItem,
@@ -43,6 +43,14 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   const executionStore = useExecutionStore()
   const scheduledRevoke: Record<NodeLocatorId, { stop: () => void }> = {}
 
+  /**
+   * Get current workflow's promptId from canvas store.
+   * This works in all contexts (Vue components, WebSocket handlers, class methods).
+   */
+  function getCurrentPromptId(): string | null {
+    return useCanvasStore().currentPromptId
+  }
+
   function scheduleRevoke(locator: NodeLocatorId, cb: () => void) {
     scheduledRevoke[locator]?.stop()
 
@@ -68,10 +76,10 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   function getNodeOutputsByLocatorId(
     nodeLocatorId: string
   ): ExecutedWsMessage['output'] | undefined {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
 
     if (!promptId) {
-      console.error('getNodeOutputsByLocatorId: No workflowPromptId')
+      console.error('getNodeOutputsByLocatorId: No currentPromptId')
       return undefined
     }
 
@@ -86,7 +94,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   }
 
   function getNodePreviewImages(nodeId: string): string[] | undefined {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
 
     if (!promptId) return undefined
 
@@ -158,12 +166,12 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
     outputs: ExecutedWsMessage['output'] | ResultItem,
     options: SetOutputOptions = {}
   ) {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
 
     // STRICT: promptId is mandatory
     if (!promptId) {
       console.error(
-        'setOutputsByLocatorId: No workflowPromptId - cannot store outputs'
+        'setOutputsByLocatorId: No currentPromptId - cannot store outputs'
       )
       return
     }
@@ -243,10 +251,10 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   }
 
   function setNodePreviewImagesByLocatorId(nodeId: string, blobUrls: string[]) {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
 
     if (!promptId) {
-      console.error('setNodePreviewImages: No workflowPromptId')
+      console.error('setNodePreviewImages: No currentPromptId')
       return
     }
 
@@ -324,7 +332,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * @param nodeLocatorId - The node locator ID
    */
   function revokePreviewsByLocatorId(nodeLocatorId: NodeLocatorId) {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
     if (!promptId) return
 
     const previews = workflowPreviewImages.value.get(promptId)?.[nodeLocatorId]
@@ -413,7 +421,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * Clears both outputs and preview images
    */
   function removeNodeOutputs(nodeId: number | string) {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
     if (!promptId) return false
 
     const nodeLocatorId = nodeIdToNodeLocatorId(Number(nodeId))
@@ -439,9 +447,9 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   function restoreOutputs(
     outputs: Record<string, ExecutedWsMessage['output']>
   ) {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
     if (!promptId) {
-      console.error('restoreOutputs: No workflowPromptId')
+      console.error('restoreOutputs: No currentPromptId')
       return
     }
 
@@ -451,7 +459,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   function updateNodeImages(node: LGraphNode) {
     if (!node.images?.length) return
 
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
     if (!promptId) return
 
     const nodeLocatorId = nodeIdToNodeLocatorId(node.id)
@@ -472,7 +480,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   }
 
   function resetAllOutputsAndPreviews() {
-    const promptId = inject<Ref<string | undefined>>('workflowPromptId')?.value
+    const promptId = getCurrentPromptId()
     if (!promptId) return
 
     workflowNodeOutputs.value.delete(promptId)
