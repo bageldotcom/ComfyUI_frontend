@@ -25,9 +25,14 @@ const dataCache = new Map<string, CacheEntry<any>>()
 const createCacheKey = (config: RemoteWidgetConfig): string => {
   const { route, query_params = {}, refresh = 0 } = config
 
-  // Get current user ID for cache isolation
+  // Get current user ID for cache isolation (required in multi-user mode)
   const userStore = useUserStore()
-  const userId = userStore.currentUserId || 'anonymous'
+  const userId = userStore.currentUserId
+  if (!userId) {
+    throw new Error(
+      '[useRemoteWidget] currentUserId is null - user must be authenticated'
+    )
+  }
 
   const paramsKey = Object.entries(query_params)
     .sort(([a], [b]) => a.localeCompare(b))
