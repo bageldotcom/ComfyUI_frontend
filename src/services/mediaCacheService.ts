@@ -1,5 +1,7 @@
 import { reactive } from 'vue'
 
+import { api } from '@/scripts/api'
+
 interface CachedMedia {
   src: string
   blob?: Blob
@@ -112,8 +114,8 @@ class MediaCacheService {
     this.cache.set(src, entry)
 
     try {
-      // Fetch the media
-      const response = await fetch(src, { cache: 'force-cache' })
+      // Fetch the media with auth headers
+      const response = await api.fetchApi(src, { cache: 'force-cache' })
       if (!response.ok) {
         throw new Error(`Failed to fetch: ${response.status}`)
       }

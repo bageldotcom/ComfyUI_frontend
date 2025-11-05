@@ -4,6 +4,7 @@ import { useChainCallback } from '@/composables/functional/useChainCallback'
 import type { IWidget, LGraphNode } from '@/lib/litegraph/src/litegraph'
 import type { RemoteWidgetConfig } from '@/schemas/nodeDefSchema'
 import { api } from '@/scripts/api'
+import { useUserStore } from '@/stores/userStore'
 
 const MAX_RETRIES = 5
 const TIMEOUT = 4096
@@ -24,12 +25,16 @@ const dataCache = new Map<string, CacheEntry<any>>()
 const createCacheKey = (config: RemoteWidgetConfig): string => {
   const { route, query_params = {}, refresh = 0 } = config
 
+  // Get current user ID for cache isolation
+  const userStore = useUserStore()
+  const userId = userStore.currentUserId || 'anonymous'
+
   const paramsKey = Object.entries(query_params)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('&')
 
-  return [route, `r=${refresh}`, paramsKey].join(';')
+  return [route, `user=${userId}`, `r=${refresh}`, paramsKey].join(';')
 }
 
 const getBackoff = (retryCount: number) =>
