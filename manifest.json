@@ -1,9 +1,16 @@
 {
-  "name": "ComfyUI",
-  "short_name": "ComfyUI",
-  "description": "ComfyUI: AI image generation platform",
+  "name": "Bagel Labs - AI Node Workflow",
+  "short_name": "Bagel Node Workflow",
+  "description": "Bagel Labs AI node workflow platform powered by ComfyUI",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#000000"
+  "theme_color": "#E35A2F",
+  "icons": [
+    {
+      "src": "/assets/favicon.ico",
+      "sizes": "32x32",
+      "type": "image/x-icon"
+    }
+  ]
 }
