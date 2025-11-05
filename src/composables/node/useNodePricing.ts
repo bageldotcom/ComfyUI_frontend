@@ -1,6 +1,5 @@
 import type { INodeInputSlot, LGraphNode } from '@/lib/litegraph/src/litegraph'
 import type { IComboWidget } from '@/lib/litegraph/src/types/widgets'
-import { useApiKeyAuthStore } from '@/stores/apiKeyAuthStore'
 
 /**
  * Function that calculates dynamic pricing based on node widget values
@@ -232,20 +231,16 @@ async function fetchBagelPricing(params: {
   generate_audio?: boolean
 }): Promise<string> {
   try {
-    const apiKeyStore = useApiKeyAuthStore()
-    const authHeader = apiKeyStore.getAuthHeader()
-
-    if (!authHeader) {
-      return 'Set API key'
-    }
-
+    // In multi-user mode, the middleware injects bagel-api-key header automatically
+    // In self-hosted mode, the backend uses BAGEL_API_KEY env var
+    // So we don't need to manually add auth headers here
     const response = await fetch('/api/v1/instant/pricing/estimate', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        ...authHeader
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify(params)
+      body: JSON.stringify(params),
+      credentials: 'include' // Include cookies for session auth
     })
 
     if (!response.ok) {
