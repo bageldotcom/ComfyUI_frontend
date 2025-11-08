@@ -256,6 +256,48 @@ async function fetchBagelPricing(params: {
 }
 
 /**
+ * Generic pricing function for dynamic bagel_labs nodes
+ * Extracts MODEL_ID from node constructor and calls pricing API with all widget values
+ */
+async function fetchBagelPricingForDynamicNode(
+  node: LGraphNode
+): Promise<string> {
+  try {
+    // Extract MODEL_ID from node constructor (Python class attribute)
+    const modelId = (node.constructor as any).MODEL_ID
+    if (!modelId) {
+      return 'Pending...'
+    }
+
+    // Collect all widget values dynamically
+    const params: Record<string, any> = { model: modelId }
+
+    if (node.widgets) {
+      for (const widget of node.widgets) {
+        if (widget.name && widget.value !== undefined) {
+          // Skip api_key widget
+          if (widget.name === 'api_key') continue
+
+          // Convert widget value to appropriate type
+          const value = widget.value
+          if (
+            typeof value === 'number' ||
+            typeof value === 'boolean' ||
+            typeof value === 'string'
+          ) {
+            params[widget.name] = value
+          }
+        }
+      }
+    }
+
+    return await fetchBagelPricing(params as any)
+  } catch (error) {
+    return '$0.00-5.00/Run'
+  }
+}
+
+/**
  * Static pricing data for API nodes, now supporting both strings, functions, and async functions
  */
 const apiNodeCosts: Record<
@@ -1795,6 +1837,146 @@ const apiNodeCosts: Record<
         quality: String(resolutionWidget?.value || '720p')
       })
     }
+  },
+  // Dynamic bagel_labs nodes (generated from catalog)
+  BagelBytedanceDreaminaV31TextToImageNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1LiteImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1LiteReferenceToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1LiteTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1ProFastImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1ProFastTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1ProImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedanceV1ProTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedreamV3TextToImageNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelBytedanceSeedreamV4Node: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelFalAiHidreamI1DevNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxDevNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxKontextLoraNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxKontextProMaxNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxKontextProNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxKreaDevNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxKreaLoraNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxProNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxProV11Node: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxProV11UltraNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelFluxRealismNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelHidreamI1FastNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelHidreamI1FullNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelHunyuanImageV21Node: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelHunyuanVideoImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelHunyuanVideoImg2vidLoraNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelHunyuanVideoLoraNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelHunyuanVideoNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelIdeogramV2Node: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelImagen4PreviewNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelImagen4PreviewUltraNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelJanusNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelKlingVideoV21MasterImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelKlingVideoV21MasterTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelKlingVideoV25TurboProTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelKlingVideoV2MasterImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelKlingVideoV2MasterTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelLtxVideo13bDevNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelLtxVideo13bDistilledNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelLtxv13b098DistilledNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelLumaDreamMachineRay2FlashNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelLumaDreamMachineRay2Node: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelMinimaxHailuo02ProImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelMinimaxHailuo02ProTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelMinimaxHailuo02StandardImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelMinimaxHailuo02StandardTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelMinimaxImage01Node: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelPikaV21TextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelPikaV22TextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelQwenImageNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelRecraftV2TextToImageNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelRecraftV3TextToImageNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelSeedanceNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelStableDiffusionV35LargeNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelStableDiffusionV3MediumNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelVeo31Node: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelVeo3DynamicNode: { displayPrice: fetchBagelPricingForDynamicNode },
+  BagelWanV225bImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelWanV225bTextToImageNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelWanV225bTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelWanV22A14bImageToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelWanV22A14bTextToImageLoraNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
+  },
+  BagelWanV22A14bTextToVideoNode: {
+    displayPrice: fetchBagelPricingForDynamicNode
   }
 }
 
