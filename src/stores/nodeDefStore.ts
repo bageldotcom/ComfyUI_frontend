@@ -416,7 +416,7 @@ export const useNodeDefStore = defineStore('nodeDef', () => {
       name: 'Hide API Nodes',
       description: 'Hides API nodes that require ComfyOrg cloud authentication',
       predicate: (nodeDef) => {
-        if (nodeDef.category?.startsWith('bagel')) {
+        if (nodeDef.category?.includes('bagel')) {
           return true
         }
         return !nodeDef.api_node
