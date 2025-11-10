@@ -217,6 +217,10 @@ export const zComfyNodeDef = z.object({
    */
   api_node: z.boolean().optional(),
   /**
+   * Model ID for dynamic Bagel nodes, exposed from backend MODEL_ID class attribute
+   */
+  model_id: z.string().optional(),
+  /**
    * Specifies the order of inputs for each input category.
    * Used to ensure consistent widget ordering regardless of JSON serialization.
    * Keys are 'required', 'optional', etc., values are arrays of input names.

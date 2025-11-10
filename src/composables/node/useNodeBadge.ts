@@ -135,8 +135,8 @@ export const useNodeBadge = () => {
             }
           }
 
-          // Initial price load
-          void updatePrice()
+          // Initial price load with slight delay for widgets to initialize
+          setTimeout(() => void updatePrice(), 100)
 
           let creditsBadge
           const createBadge = () => {

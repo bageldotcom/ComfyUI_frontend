@@ -221,7 +221,7 @@ const sora2PricingCalculator: PricingFunction = (node: LGraphNode): string => {
 /**
  * Call backend unified pricing API for Bagel nodes
  */
-async function fetchBagelPricing(params: {
+interface BagelPricingParams {
   model: string
   duration?: number
   quality?: string
@@ -229,7 +229,10 @@ async function fetchBagelPricing(params: {
   height?: number
   num_images?: number
   generate_audio?: boolean
-}): Promise<string> {
+  [key: string]: string | number | boolean | undefined
+}
+
+async function fetchBagelPricing(params: BagelPricingParams): Promise<string> {
   try {
     // In multi-user mode, the middleware injects X-API-KEY header automatically
     // In self-hosted mode, the backend uses BAGEL_API_KEY env var
@@ -263,14 +266,14 @@ async function fetchBagelPricingForDynamicNode(
   node: LGraphNode
 ): Promise<string> {
   try {
-    // Extract MODEL_ID from node constructor (Python class attribute)
-    const modelId = (node.constructor as any).MODEL_ID
+    // Extract MODEL_ID from node metadata (exposed by server.py)
+    const modelId = node.constructor.nodeData?.model_id
     if (!modelId) {
       return 'Pending...'
     }
 
     // Collect all widget values dynamically
-    const params: Record<string, any> = { model: modelId }
+    const params: BagelPricingParams = { model: modelId }
 
     if (node.widgets) {
       for (const widget of node.widgets) {
@@ -291,7 +294,7 @@ async function fetchBagelPricingForDynamicNode(
       }
     }
 
-    return await fetchBagelPricing(params as any)
+    return await fetchBagelPricing(params)
   } catch (error) {
     return '$0.00-5.00/Run'
   }
@@ -2104,7 +2107,34 @@ export const useNodePricing = () => {
       BagelParisNode: ['width', 'height'],
       BagelWanVideoNode: ['model', 'resolution']
     }
-    return widgetMap[nodeType] || []
+
+    // Check explicit mapping first
+    if (widgetMap[nodeType]) {
+      return widgetMap[nodeType]
+    }
+
+    // Fallback for unmapped Bagel nodes (bagel_labs dynamic nodes)
+    // All bagel_labs nodes use dynamic schema loading, so watch common parameters
+    if (nodeType.startsWith('Bagel')) {
+      return [
+        'prompt',
+        'negative_prompt',
+        'seed',
+        'num_inference_steps',
+        'guidance_scale',
+        'num_frames',
+        'fps',
+        'duration',
+        'width',
+        'height',
+        'aspect_ratio',
+        'quality',
+        'resolution',
+        'model'
+      ]
+    }
+
+    return []
   }
 
   return {

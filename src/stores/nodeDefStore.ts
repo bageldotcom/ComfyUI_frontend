@@ -42,6 +42,10 @@ export class ComfyNodeDefImpl
   readonly output_node: boolean
   readonly api_node: boolean
   /**
+   * Model ID for dynamic Bagel nodes, exposed from backend MODEL_ID class attribute
+   */
+  readonly model_id?: string
+  /**
    * @deprecated Use `inputs` instead
    */
   readonly input: ComfyInputSpecV1
@@ -127,6 +131,7 @@ export class ComfyNodeDefImpl
       obj.experimental ?? obj.category.startsWith('_for_testing')
     this.output_node = obj.output_node
     this.api_node = !!obj.api_node
+    this.model_id = obj.model_id
     this.input = obj.input ?? {}
     this.output = obj.output ?? []
     this.output_is_list = obj.output_is_list
