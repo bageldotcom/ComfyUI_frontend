@@ -617,11 +617,16 @@ export class LiteGraphGlobal {
         categories[type.category] = 1
       }
     }
-    const result = []
+    const bagel_labs = []
+    const others = []
     for (const i in categories) {
-      result.push(i)
+      if (i.startsWith('bagel_labs')) {
+        bagel_labs.push(i)
+      } else {
+        others.push(i)
+      }
     }
-    return result
+    return [...bagel_labs, ...others]
   }
 
   // debug purposes: reloads all the js scripts that matches a wildcard
