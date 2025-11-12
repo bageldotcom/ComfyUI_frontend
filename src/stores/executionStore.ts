@@ -178,6 +178,32 @@ export const useExecutionStore = defineStore('execution', () => {
     }
   }
 
+  /**
+   * Get execution state for the currently active workflow.
+   * Returns undefined if no workflow is active or executing.
+   *
+   * This helper enables per-workflow progress isolation by reading from the
+   * promptExecutions Map using the current canvas's promptId.
+   */
+  function getActiveExecutionState(): PromptExecutionState | undefined {
+    // Try canvasStore first (most reliable for current canvas)
+    const promptId = canvasStore.currentPromptId
+    if (promptId) {
+      return promptExecutions.value.get(promptId)
+    }
+
+    // Fallback to workflowStore mapping (for non-canvas contexts)
+    const activeWorkflow = workflowStore.activeWorkflow
+    if (!activeWorkflow) return undefined
+
+    const workflowPromptId = workflowStore.workflowPromptIds.get(
+      activeWorkflow.path
+    )
+    if (!workflowPromptId) return undefined
+
+    return promptExecutions.value.get(workflowPromptId)
+  }
+
   const mergeExecutionProgressStates = (
     currentState: NodeProgressState | undefined,
     newState: NodeProgressState
@@ -212,7 +238,12 @@ export const useExecutionStore = defineStore('execution', () => {
   >(() => {
     const result: Record<NodeLocatorId, NodeProgressState> = {}
 
-    const states = nodeProgressStates.value // Apparently doing this inside `Object.entries` causes issues
+    // Get active workflow's execution state
+    const execution = getActiveExecutionState()
+    if (!execution) return result
+
+    // Read from per-prompt state instead of global
+    const states = execution.progressStates
     for (const state of Object.values(states)) {
       const parts = String(state.display_node_id).split(':')
       for (let i = 0; i < parts.length; i++) {
@@ -232,7 +263,10 @@ export const useExecutionStore = defineStore('execution', () => {
 
   // Easily access all currently executing node IDs
   const executingNodeIds = computed<NodeId[]>(() => {
-    return Object.entries(nodeProgressStates.value)
+    const execution = getActiveExecutionState()
+    if (!execution) return []
+
+    return Object.entries(execution.progressStates)
       .filter(([_, state]) => state.state === 'running')
       .map(([nodeId, _]) => nodeId)
   })
@@ -276,15 +310,17 @@ export const useExecutionStore = defineStore('execution', () => {
   )
 
   const totalNodesToExecute = computed<number>(() => {
-    if (!activePrompt.value) return 0
-    return Object.values(activePrompt.value.nodes).length
+    const execution = getActiveExecutionState()
+    if (!execution) return 0
+    return Object.keys(execution.nodes).length
   })
 
   const isIdle = computed<boolean>(() => !activePromptId.value)
 
   const nodesExecuted = computed<number>(() => {
-    if (!activePrompt.value) return 0
-    return Object.values(activePrompt.value.nodes).filter(Boolean).length
+    const execution = getActiveExecutionState()
+    if (!execution) return 0
+    return Object.values(execution.nodes).filter(Boolean).length
   })
 
   const executionProgress = computed<number>(() => {
@@ -360,8 +396,19 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleExecutionCached(e: CustomEvent<ExecutionCachedWsMessage>) {
+    const { prompt_id, nodes } = e.detail
+
+    // Phase 2: Update prompt-scoped state
+    if (prompt_id) {
+      const state = getExecutionState(prompt_id)
+      for (const n of nodes) {
+        state.nodes[n] = true
+      }
+    }
+
+    // Backward compatibility
     if (!activePrompt.value) return
-    for (const n of e.detail.nodes) {
+    for (const n of nodes) {
       activePrompt.value.nodes[n] = true
     }
   }
@@ -383,6 +430,8 @@ export const useExecutionStore = defineStore('execution', () => {
         state.progressStates[node].state = 'finished'
         state.progressStates[node].value = state.progressStates[node].max
       }
+      // Mark node as executed
+      state.nodes[node] = true
       state.lastActivity = Date.now()
     }
 
@@ -581,6 +630,10 @@ export const useExecutionStore = defineStore('execution', () => {
       ...queuedPrompt.nodes
     }
     queuedPrompt.workflow = workflow
+
+    // Phase 2: Also populate promptExecutions for multi-workflow isolation
+    const execution = getExecutionState(id)
+    execution.nodes = { ...queuedPrompt.nodes }
   }
 
   /**

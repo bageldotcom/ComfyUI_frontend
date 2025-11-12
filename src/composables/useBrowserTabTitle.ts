@@ -38,11 +38,18 @@ export const useBrowserTabTitle = () => {
   })
 
   const nodeExecutionTitle = computed(() => {
+    // Get active workflow's execution state
+    const activeWorkflow = workflowStore.activeWorkflow
+    if (!activeWorkflow) return ''
+
+    const promptId = workflowStore.workflowPromptIds.get(activeWorkflow.path)
+    if (!promptId) return ''
+
+    const execution = executionStore.promptExecutions.get(promptId)
+    if (!execution) return ''
+
     // Check if any nodes are in progress
-    const nodeProgressEntries = Object.entries(
-      executionStore.nodeProgressStates
-    )
-    const runningNodes = nodeProgressEntries.filter(
+    const runningNodes = Object.entries(execution.progressStates).filter(
       ([_, state]) => state.state === 'running'
     )
 
@@ -59,7 +66,7 @@ export const useBrowserTabTitle = () => {
     const [nodeId, state] = runningNodes[0]
     const progress = Math.round((state.value / state.max) * 100)
     const nodeType =
-      executionStore.activePrompt?.workflow?.changeTracker?.activeState.nodes.find(
+      activeWorkflow.changeTracker?.activeState.nodes.find(
         (n) => String(n.id) === nodeId
       )?.type || 'Node'
 
