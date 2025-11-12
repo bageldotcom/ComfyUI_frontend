@@ -48,7 +48,7 @@ Sentry.init({
 
   // Sampling rates (matches Bagel frontend)
   tracesSampleRate: 1.0, // 100% always (matches Bagel)
-  replaysSessionSampleRate: 0.1, // 10% of sessions
+  replaysSessionSampleRate: 0.5, // 50% of sessions (increased for better observability)
   replaysOnErrorSampleRate: 1.0, // 100% when errors occur
 
   // Session tracking
