@@ -164,15 +164,12 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
   function setOutputsByLocatorId(
     nodeLocatorId: NodeLocatorId,
     outputs: ExecutedWsMessage['output'] | ResultItem,
-    options: SetOutputOptions = {}
+    options: SetOutputOptions = {},
+    promptIdOverride?: string
   ) {
-    const promptId = getCurrentPromptId()
+    const promptId = promptIdOverride || getCurrentPromptId()
 
-    // STRICT: promptId is mandatory
     if (!promptId) {
-      console.error(
-        'setOutputsByLocatorId: No currentPromptId - cannot store outputs'
-      )
       return
     }
 
@@ -238,23 +235,28 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    * @param outputs - The outputs to store
    * @param options - Options for setting outputs
    * @param options.merge - If true, merge with existing outputs (arrays are concatenated)
+   * @param promptId - Optional prompt ID override from WebSocket message
    */
   function setNodeOutputsByExecutionId(
     executionId: string,
     outputs: ExecutedWsMessage['output'] | ResultItem,
-    options: SetOutputOptions = {}
+    options: SetOutputOptions = {},
+    promptId?: string
   ) {
     const nodeLocatorId = executionIdToNodeLocatorId(executionId)
     if (!nodeLocatorId) return
 
-    setOutputsByLocatorId(nodeLocatorId, outputs, options)
+    setOutputsByLocatorId(nodeLocatorId, outputs, options, promptId)
   }
 
-  function setNodePreviewImagesByLocatorId(nodeId: string, blobUrls: string[]) {
-    const promptId = getCurrentPromptId()
+  function setNodePreviewImagesByLocatorId(
+    nodeId: string,
+    blobUrls: string[],
+    promptIdOverride?: string
+  ) {
+    const promptId = promptIdOverride || getCurrentPromptId()
 
     if (!promptId) {
-      console.error('setNodePreviewImages: No currentPromptId')
       return
     }
 
@@ -278,10 +280,12 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
    *
    * @param executionId - The execution ID (e.g., "123:456:789" or "789")
    * @param previewImages - Array of preview image URLs to store
+   * @param promptId - Optional prompt ID override from WebSocket message
    */
   function setNodePreviewsByExecutionId(
     executionId: string,
-    previewImages: string[]
+    previewImages: string[],
+    promptId?: string
   ) {
     const nodeLocatorId = executionIdToNodeLocatorId(executionId)
     if (!nodeLocatorId) return
@@ -289,7 +293,7 @@ export const useNodeOutputStore = defineStore('nodeOutput', () => {
       scheduledRevoke[nodeLocatorId].stop()
       delete scheduledRevoke[nodeLocatorId]
     }
-    setNodePreviewImagesByLocatorId(nodeLocatorId, previewImages)
+    setNodePreviewImagesByLocatorId(nodeLocatorId, previewImages, promptId)
   }
 
   /**

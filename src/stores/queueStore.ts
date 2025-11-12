@@ -425,7 +425,9 @@ export class TaskItemImpl {
       for (const nodeExecutionId in rawOutputs) {
         nodeOutputsStore.setNodeOutputsByExecutionId(
           nodeExecutionId,
-          rawOutputs[nodeExecutionId]
+          rawOutputs[nodeExecutionId],
+          {},
+          this.promptId
         )
       }
       useExtensionService().invokeExtensions(
