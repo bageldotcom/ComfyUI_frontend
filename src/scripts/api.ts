@@ -389,6 +389,9 @@ export class ComfyApi extends EventTarget {
     if (!options.cache) {
       options.cache = 'no-cache'
     }
+    if (!options.credentials) {
+      options.credentials = 'include'
+    }
 
     if (Array.isArray(options.headers)) {
       options.headers.push(['Comfy-User', this.user])
