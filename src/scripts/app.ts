@@ -1345,14 +1345,20 @@ export class ComfyApp {
     batchCount: number = 1,
     queueNodeIds?: NodeExecutionId[]
   ): Promise<boolean> {
+    // DEBUG_QUEUE_BUG: Log entry
+    console.log(`[DEBUG_QUEUE_BUG] queuePrompt() called: processingQueue=${this.processingQueue}, number=${number}, batchCount=${batchCount}`)
+
     // Only have one action process the items so each one gets a unique seed correctly
     if (this.processingQueue) {
+      console.log(`[DEBUG_QUEUE_BUG] queuePrompt() BLOCKED: processingQueue=true`)
       return false
     }
 
     this.queueItems.push({ number, batchCount, queueNodeIds })
+    console.log(`[DEBUG_QUEUE_BUG] queuePrompt() pushed to queueItems, length=${this.queueItems.length}`)
 
     this.processingQueue = true
+    console.log(`[DEBUG_QUEUE_BUG] queuePrompt() set processingQueue=true`)
     const executionStore = useExecutionStore()
     const canvasStore = useCanvasStore()
     executionStore.lastNodeErrors = null
@@ -1374,11 +1380,13 @@ export class ComfyApp {
 
           const p = await this.graphToPrompt(this.graph)
           try {
+            console.log(`[DEBUG_QUEUE_BUG] queuePrompt() calling api.queuePrompt()`)
             api.authToken = comfyOrgAuthToken
             api.apiKey = comfyOrgApiKey ?? undefined
             const res = await api.queuePrompt(number, p, {
               partialExecutionTargets: queueNodeIds
             })
+            console.log(`[DEBUG_QUEUE_BUG] queuePrompt() api.queuePrompt() returned: prompt_id=${res.prompt_id}`)
             delete api.authToken
             delete api.apiKey
             executionStore.lastNodeErrors = res.node_errors ?? null
@@ -1395,6 +1403,7 @@ export class ComfyApp {
                   })
                   // Update canvas promptId to match execution promptId
                   canvasStore.setCurrentPromptId(res.prompt_id)
+                  console.log(`[DEBUG_QUEUE_BUG] queuePrompt() stored prompt and set currentPromptId=${res.prompt_id}`)
                 }
               } catch (error) {}
             }
@@ -1430,6 +1439,7 @@ export class ComfyApp {
       }
     } finally {
       this.processingQueue = false
+      console.log(`[DEBUG_QUEUE_BUG] queuePrompt() set processingQueue=false`)
     }
     api.dispatchCustomEvent('promptQueued', { number, batchCount })
     return !executionStore.lastNodeErrors
