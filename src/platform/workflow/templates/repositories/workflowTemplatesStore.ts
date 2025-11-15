@@ -427,7 +427,7 @@ export const useWorkflowTemplatesStore = defineStore(
         ).sort()
 
         const extensionItems: NavItemData[] = extensionModules
-          .filter((moduleName) => moduleName !== 'bagel')
+          .filter((moduleName) => moduleName !== 'bagel_labs')
           .map((moduleName) => ({
             id: `extension-${moduleName}`,
             label: st(
@@ -470,34 +470,35 @@ export const useWorkflowTemplatesStore = defineStore(
      */
     async function loadCustomNodeTemplatesWithMetadata() {
       try {
-        // Check if bagel custom node has templates
-        if (customTemplates.value['bagel']) {
+        // Check if bagel_labs custom node has templates
+        if (customTemplates.value['bagel_labs']) {
           try {
-            // Fetch bagel's .index.json which contains full metadata
+            // Fetch bagel_labs's .index.json which contains full metadata
             const response = await fetch(
-              api.apiURL('/workflow_templates/bagel/.index.json')
+              api.apiURL('/workflow_templates/bagel_labs/.index.json')
             )
 
             if (response.ok) {
               const bagelTemplateCategories: WorkflowTemplates[] =
                 await response.json()
 
-              // Prepend bagel templates to appear early in navigation (position 3, after "All" and "Getting Started")
+              // Prepend bagel_labs templates to appear early in navigation (position 3, after "All" and "Getting Started")
               if (Array.isArray(bagelTemplateCategories)) {
                 coreTemplates.value = [
                   ...bagelTemplateCategories,
                   ...coreTemplates.value
                 ]
 
-                // Remove bagel from customTemplates to prevent duplication
-                // (bagel templates now in coreTemplates with full .index.json metadata)
+                // Remove bagel_labs from customTemplates to prevent duplication
+                // (bagel_labs templates now in coreTemplates with full .index.json metadata)
                 // IMPORTANT: Must replace entire object (not delete) to trigger shallowRef reactivity
-                const { bagel, ...remainingTemplates } = customTemplates.value
+                const { bagel_labs, ...remainingTemplates } =
+                  customTemplates.value
                 customTemplates.value = remainingTemplates
               }
             }
           } catch (error) {
-            console.warn('Could not load bagel template metadata:', error)
+            console.warn('Could not load bagel_labs template metadata:', error)
             // Fallback to basic template names from customTemplates
           }
         }
